@@ -1,4 +1,7 @@
 export default {
+  previewOnlyTitle: 'Explore the example dashboard',
+  previewOnlyText:
+    'Live tracking is not connected for this deployment. View {count} fictional aircraft in the example dashboard.',
   retrying: 'Reconnecting',
   staleData: 'The received data is stale. Checking for fresh positions.',
   airlineInferred: 'Matched from the callsign; the actual operator may differ.',

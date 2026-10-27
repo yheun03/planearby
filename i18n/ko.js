@@ -1,6 +1,9 @@
 import { projectConfig } from '../project.config.js'
 
 export default {
+  previewOnlyTitle: '예시 화면을 확인해 보세요',
+  previewOnlyText:
+    '현재 배포에서는 실시간 조회를 지원하지 않습니다. 예시 화면에서 가상 항공기 {count}개의 정보를 확인할 수 있어요.',
   retrying: '자동 재연결 중',
   staleData: '오래된 수신 데이터입니다. 새 위치를 다시 확인하고 있어요.',
   airlineInferred: '호출부호로 매칭한 항공사입니다. 실제 운항 항공사와 다를 수 있습니다.',

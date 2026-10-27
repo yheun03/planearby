@@ -37,6 +37,7 @@ import {
   SEARCH_RADIUS_KM,
 } from '~/utils/geo.js'
 
+const previewOnly = import.meta.env?.VITE_PAGES_PREVIEW_ONLY === true
 const language = ref('ko')
 const theme = ref('dark')
 const systemDark = ref(false)
@@ -76,7 +77,7 @@ let permissionStatus
 let colorScheme
 let permissionController
 let pendingRefreshGeneration = null
-let automaticScanPending = true
+let automaticScanPending = !previewOnly
 let retryAt = 0
 let failedPolls = 0
 let lastPollAt = -Infinity
@@ -166,6 +167,7 @@ const selectedBearing = computed(() => {
 })
 const statusLabel = computed(() => {
   if (source.value === 'preview') return t('sample')
+  if (previewOnly) return t('preview')
   if (active.value) return t(errorKey.value ? 'retrying' : 'live')
   if (state.value === 'error') return t('errorTitle')
   return t(lastUpdated.value ? 'lastResult' : 'ready')
@@ -173,9 +175,11 @@ const statusLabel = computed(() => {
 const locationText = computed(() =>
   source.value === 'preview'
     ? t('previewLocation')
-    : location.value
-      ? t('currentLocation')
-      : t('waitingLocation'),
+    : previewOnly
+      ? t('preview')
+      : location.value
+        ? t('currentLocation')
+        : t('waitingLocation'),
 )
 const updatedText = computed(() =>
   lastUpdated.value
@@ -197,12 +201,14 @@ const permissionLabel = computed(() =>
   ),
 )
 const emptyTitle = computed(() => {
+  if (previewOnly) return t('previewOnlyTitle')
   if (errorKey.value) return t(active.value ? 'retrying' : 'errorTitle')
   if (state.value === 'locating') return t('locating')
   if (state.value === 'tracking' && !lastUpdated.value) return t('loadingTitle')
   return t('emptyTitle')
 })
 const emptyText = computed(() => {
+  if (previewOnly) return t('previewOnlyText', { count: exampleFlights.length })
   if (errorKey.value) return t(errorKey.value)
   if (state.value === 'locating') return t('locatingText')
   if (state.value === 'tracking' && !lastUpdated.value) return t('loadingText')
@@ -467,7 +473,7 @@ async function enableCompass() {
 }
 
 async function startScan() {
-  if (active.value) return
+  if (previewOnly || active.value) return
   automaticScanPending = false
   finishSession('locating')
   const currentGeneration = generation
@@ -631,7 +637,7 @@ onMounted(async () => {
   window.addEventListener('pagehide', stopWhenAway)
   window.addEventListener('pageshow', handlePageShow)
   startAutomaticScan()
-  if (navigator.permissions) {
+  if (!previewOnly && navigator.permissions) {
     try {
       permissionStatus = await navigator.permissions.query({ name: 'geolocation' })
       syncLocationPermission()
@@ -692,7 +698,7 @@ onUnmounted(() => {
       <span class="header__status">{{ statusLabel }}</span>
     </div>
     <div class="scan-controls">
-      <span>{{ t('simpleScanHint') }}</span>
+      <span v-if="!previewOnly">{{ t('simpleScanHint') }}</span>
       <button
         v-if="active"
         class="scan-button"
@@ -707,13 +713,13 @@ onUnmounted(() => {
       <button
         v-else
         class="scan-button"
-        @click="startScan"
+        @click="previewOnly ? showPreview() : startScan()"
       >
         <ScanLine
           aria-hidden="true"
           :size="15"
         />
-        {{ state === 'idle' ? t('start') : t('restart') }}
+        {{ previewOnly ? t('showPreview') : state === 'idle' ? t('start') : t('restart') }}
       </button>
     </div>
   </header>
@@ -924,7 +930,7 @@ onUnmounted(() => {
           <h3>{{ emptyTitle }}</h3>
           <p>{{ emptyText }}</p>
           <button
-            v-if="errorKey"
+            v-if="previewOnly || errorKey"
             class="fids-empty__preview"
             @click="showPreview"
           >
@@ -1303,7 +1309,10 @@ onUnmounted(() => {
           {{ t(compassMessage) }}
         </p>
       </fieldset>
-      <div class="setting-group setting-group--location">
+      <div
+        v-if="!previewOnly"
+        class="setting-group setting-group--location"
+      >
         <div class="setting-group__title">
           <h3>
             <MapPin

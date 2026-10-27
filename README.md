@@ -27,7 +27,9 @@ npm run deploy
 
 이 명령은 GitHub `origin`에서 배포 경로를 계산하고, 사전 렌더링한 `dist/`를 `gh-pages` 브랜치에 배포합니다. 저장소에 대한 Git push 권한과 인증이 필요합니다. 첫 배포 후 GitHub 저장소 **Settings → Pages → Deploy from a branch → gh-pages / (root)**를 선택하세요.
 
-GitHub Pages는 서버 함수를 실행하지 않습니다. `api/aircraft.js`를 별도 배포해 실제 중계 API 주소를 얻은 뒤에만 `.env.pages.local`에 `VITE_AIRCRAFT_API_URL`을 설정하세요. 웹사이트 주소나 예시 문구를 값으로 입력하면 조회할 수 없습니다. API 주소는 공개 값이며 비밀 키가 아닙니다. 값이 없으면 Pages 빌드를 중단합니다. 로컬 개발은 환경 변수 없이 자체 `/api/aircraft`를 사용하며, 배포용 주소가 설정되어 있어도 개발 모드에서는 로컬 API를 우선합니다. 저장소 전체를 Vercel의 Vite 프로젝트로 배포하면 기본 `/api/aircraft`를 사용하므로 별도 주소 설정이 필요 없습니다. 중계 호스팅은 해당 서비스의 무료 플랜 한도가 적용됩니다.
+중계 API 주소가 없어도 빌드와 배포가 가능합니다. 이 경우 첫 화면에 예시 안내와 **예시 화면 보기** 버튼을 표시하며, 버튼을 누르면 가상 항공기 12개를 볼 수 있습니다. 위치 권한이나 외부 API 요청은 발생하지 않으며 예시 항공편은 10초마다 자동 전환됩니다. 예시는 접속 즉시 자동으로 표시하지 않습니다.
+
+실시간 조회를 활성화하려면 `api/aircraft.js`를 별도 배포한 뒤 `.env.pages.local`의 `VITE_AIRCRAFT_API_URL`에 실제 중계 API 주소를 설정하고 다시 배포하세요. GitHub Pages는 서버 함수를 실행하지 않습니다. 웹사이트 주소나 예시 문구를 값으로 입력하지 마세요. API 주소는 공개 값이며 비밀 키가 아닙니다. 로컬 개발은 환경 변수 없이 자체 `/api/aircraft`를 사용합니다. 저장소 전체를 Vercel의 Vite 프로젝트로 배포하면 기본 `/api/aircraft`를 사용하므로 별도 주소 설정이 필요 없습니다. 중계 호스팅은 해당 서비스의 무료 플랜 한도가 적용됩니다.
 
 사용자 사이트 저장소(`<owner>.github.io`)는 `/`, 프로젝트 저장소는 `/<repository>/` 경로를 사용합니다. 특정 소유자나 저장소 이름을 코드에 고정하지 않습니다. canonical, Open Graph URL, sitemap과 robots 파일도 배포 주소에서 생성합니다. 커스텀 도메인을 사용하는 경우 `SITE_URL`로 정규 URL을 지정하고 저장소의 Pages 도메인 설정을 맞추세요.
 

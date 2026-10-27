@@ -31,16 +31,17 @@ export default defineConfig(({ mode }) => {
   }
   if (mode === 'pages' && !pages)
     throw new Error('GitHub origin remote is required for Pages deployment')
-  if (mode === 'pages' && !env.VITE_AIRCRAFT_API_URL)
-    throw new Error(
-      'GitHub Pages needs VITE_AIRCRAFT_API_URL pointing to your deployed /api/aircraft function; see .env.example',
-    )
   const base = mode === 'pages' ? pages.base : projectConfig.baseURL
   const configuredUrl = env.SITE_URL || projectConfig.siteUrl || (mode === 'pages' ? pages.url : '')
   const siteUrl = configuredUrl ? `${configuredUrl.replace(/\/+$/, '')}/` : ''
 
   return {
     base,
+    define: {
+      'import.meta.env.VITE_PAGES_PREVIEW_ONLY': JSON.stringify(
+        mode === 'pages' && !env.VITE_AIRCRAFT_API_URL?.trim(),
+      ),
+    },
     resolve: { alias: { '~': fileURLToPath(new URL('.', import.meta.url)) } },
     plugins: [
       vue(),

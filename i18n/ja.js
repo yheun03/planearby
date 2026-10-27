@@ -1,4 +1,7 @@
 export default {
+  previewOnlyTitle: 'サンプル画面をご覧ください',
+  previewOnlyText:
+    'この公開版ではリアルタイム検索を利用できません。サンプル画面で架空の航空機{count}機の情報を確認できます。',
   retrying: '自動再接続中',
   staleData: '受信データが古いため、新しい位置情報を確認しています。',
   airlineInferred: 'コールサインから推定した航空会社です。実際の運航会社と異なる場合があります。',
