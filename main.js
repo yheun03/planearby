@@ -1,6 +1,6 @@
 import { createApp, createSSRApp } from 'vue'
-import App from './App.vue'
-import './styles/main.scss'
+import App from './app.vue'
+import './assets/scss/main.scss'
 
 const root = document.getElementById('app')
 const app = root.childElementCount ? createSSRApp(App) : createApp(App)

@@ -4,7 +4,7 @@
 
 왼쪽 기계식 플랩 보드에는 선택한 항공기의 호출부호·항공사·기종·출발/도착 공항·현지 예정 시간을 표시합니다. 처음에는 가장 가까운 항공기를 선택하고, 10초마다 아직 보여주지 않은 항공기로 넘어가며 플랩이 순차적으로 뒤집힙니다. 레이더에서 항공기를 직접 선택할 수도 있습니다.
 
-오른쪽 레이더에는 반경 50km의 항공기를 거리와 방위에 맞춰 배치하고, 기수로 지상 진행 방향을 표시합니다. 레이더 위쪽은 사용자가 지정하거나 휴대폰 센서로 읽은 바라보는 방향입니다.
+오른쪽 레이더에는 설정한 탐지 반경(현재 25km)의 항공기를 거리와 방위에 맞춰 배치하고, 기수로 지상 진행 방향을 표시합니다. 레이더 위쪽은 사용자가 지정하거나 휴대폰 센서로 읽은 바라보는 방향입니다.
 
 ## 로컬 실행
 
@@ -32,7 +32,7 @@ AIRLABS_MONTHLY_LIMIT=1000
 PORT=4173
 ```
 
-키를 설정하지 않으면 위치·호출부호·제공되는 기종과 진행 방향을 표시하고, 운항 상세 정보는 `정보 없음`으로 안내합니다. `VITE_` 환경 변수에 키를 넣으면 안 됩니다. `.env`와 사용량 기록 `.data/`는 Git에서 제외합니다.
+키를 설정하지 않아도 위치·호출부호·제공되는 기종과 진행 방향을 표시합니다. 항공사는 호출부호를 외부 데이터셋과 매칭해 이름과 IATA 코드를 표시하고, 공항·예정 시간 등 운항 상세 정보는 `정보 없음`으로 안내합니다. `VITE_` 환경 변수에 키를 넣으면 안 됩니다. `.env`와 사용량 기록 `.data/`는 Git에서 제외합니다.
 
 adsb.lol은 유효한 연락처가 들어간 식별용 User-Agent를 요구합니다. 기본값은 이 프로젝트 저장소 주소입니다. 포크해서 운영한다면 `ADSB_USER_AGENT`의 URL을 본인의 실제 연락 가능한 프로젝트 주소로 바꿔 주세요.
 
@@ -49,13 +49,13 @@ npm start
 
 - 브라우저 위치 권한은 사용자가 조회 또는 설정의 위치 재요청 버튼을 누를 때만 요청합니다.
 - 시작 버튼을 누른 시점부터 최대 30초 동안 조회하며, 위치 확인 시간도 포함합니다.
-- adsb.lol의 27해리(약 50.004km) 범위 응답에서 Haversine 수평 거리가 50km 이하인 항공기만 표시합니다. 지상 항공기와 30초보다 오래된 위치는 제외합니다.
+- `utils/geo.js`의 `SEARCH_RADIUS_KM`을 해리로 올림 변환해 adsb.lol에 요청하고, 응답을 Haversine 수평 거리로 다시 계산해 지정한 반경 이하인 항공기만 표시합니다. 지상 항공기와 30초보다 오래된 위치는 제외합니다.
 - 약 7초마다 위치를 갱신합니다. 고도는 거리 계산에 포함하지 않습니다.
 - 현재 선택한 항공기에 대해서만 AirLabs 상세 정보를 조회하고, 같은 호출부호의 결과를 세션 동안 재사용합니다. 직접 선택하거나 자동 전환하면 해당 항공편의 정보를 필요할 때 조회합니다.
 - 자동 전환은 처음부터 거리순으로 미표시 항공기를 순회하고, 모두 표시하면 다시 순회합니다. 직접 선택한 뒤에는 10초 후 다음 항공기로 넘어갑니다. 보드 아래 버튼으로 일시정지할 수 있으며, 설정 창이 열려 있거나 탭이 숨겨지면 자동 전환을 멈춥니다.
 - 호출부호·제공되는 기체 식별자·수신 시점·위치·운항 날짜를 검증합니다. 현재 운항과 일치한다고 확인할 수 없는 상세 정보는 표시하지 않습니다.
 - 예정 시간은 각 공항의 현지 시간입니다. 실제 시간이나 지연을 반영한 예상 시간으로 표현하지 않습니다.
-- 항공사·공항·기종 이름은 작은 로컬 목록으로 변환합니다. 없는 항목은 원래 코드를 표시하며 추가 API 요청을 하지 않습니다.
+- 항공사 이름과 IATA/ICAO 코드는 OpenFlights의 생성된 스냅샷으로 매칭합니다. 공항·기종 이름은 기존 로컬 목록을 사용합니다. 없는 항목은 원래 코드를 표시하며 이름 조회용 추가 AirLabs 요청을 하지 않습니다.
 - 중지, 시간 만료, 탭을 숨기거나 페이지를 떠날 때 타이머와 진행 중인 요청을 정리합니다.
 - 빈 결과가 실제 주변에 항공기가 없다는 의미는 아닙니다. 수신 범위와 데이터 지연의 영향을 받습니다.
 
@@ -88,27 +88,61 @@ npm start
 npm test
 ```
 
-Node 기본 테스트 러너로 거리·방위, 바라보는 방향에 대한 상대 좌표·기수 변환, 절대/상대 센서 구분, 나침반 보정 실패, 50km 필터, 운항 일치 검증, 키 미설정, 중복 요청, 월 한도, 세션 만료와 요청 취소를 검증합니다. 외부 API와 실제 키를 사용하지 않는 테스트입니다. 실제 AirLabs 응답의 누락률과 한국 지역 수신 범위는 본인의 키 및 위치 동의 후 확인해야 합니다. 휴대폰 센서는 실제 지원 기기와 HTTPS 환경에서 별도로 확인해야 합니다.
+Node 기본 테스트 러너로 거리·방위, 바라보는 방향에 대한 상대 좌표·기수 변환, 절대/상대 센서 구분, 나침반 보정 실패, 설정된 반경의 경계 필터, 운항 일치 검증, 키 미설정, 중복 요청, 월 한도, 세션 만료와 요청 취소를 검증합니다. 외부 API와 실제 키를 사용하지 않는 테스트입니다. 실제 AirLabs 응답의 누락률과 한국 지역 수신 범위는 본인의 키 및 위치 동의 후 확인해야 합니다. 휴대폰 센서는 실제 지원 기기와 HTTPS 환경에서 별도로 확인해야 합니다.
 
 ## 파일 구성
 
 ```text
-src/App.vue                    대시보드, 조회 흐름, 설정
-src/styles/main.scss           SCSS 변수와 BEM 중첩 스타일
-src/components/AircraftIcon.vue 북쪽을 향한 공통 항공기 실루엣
-src/components/SplitFlap.vue    접근성과 모션 감소를 고려한 기계식 플랩
-src/data/messages.js           한국어·영어·일본어 문구
-src/data/flights.js            예시와 코드별 표시 이름
-shared/geo.js                  서버·화면 공용 거리와 방위 계산
-server/api.js                  중계, 세션, 검증, 사용량 제한
-server/index.js                빌드 결과와 API를 제공하는 서버
-scripts/build.mjs              빌드 및 초기 HTML 사전 렌더링
-tests/                         거리·방위 및 API 동작 테스트
+app.vue                                      앱 진입 컴포넌트
+main.js                                      Vite의 Vue/SCSS 진입점
+project.config.js                            프로젝트 이름·기본 SEO·이미지·데이터 출처 설정
+layouts/default.vue                          공통 화면 외곽 구조
+pages/index.vue                              대시보드·조회 흐름·설정
+components/projects/planearby/                Planearby 전용 항공기 아이콘·기계식 플랩
+assets/scss/abstract/                         CSS를 출력하지 않는 SCSS 변수·mixin
+assets/scss/base/                             기본 스타일과 유틸리티 클래스
+assets/scss/layout/                           레이아웃 스타일
+assets/scss/projects/planearby/               테마·대시보드·설정·플랩 스타일
+assets/data/airlines.json                     외부 항공사 데이터로 생성한 스냅샷
+assets/data/projects/planearby/flights.js      가상의 예시와 기존 공항·기종 코드 이름
+public/images/projects/planearby/             프로젝트별 favicon·공유 이미지
+i18n/ko.js, en.js, ja.js, index.js             언어별 문구와 등록
+utils/geo.js                                 서버·화면 공용 거리·방위·탐지 반경
+utils/airlines.js                            외부 데이터 기반 항공사 코드 매칭
+server/api/aircraft.js                        중계·세션·운항 검증·요청 제한
+server/index.js                              빌드 결과와 API를 제공하는 서버
+scripts/build.mjs                            빌드와 초기 HTML 사전 렌더링
+scripts/update-airlines.mjs                   외부 항공사 데이터 스냅샷 갱신
+tests/                                       거리·방위·API·항공사 매칭 테스트
 ```
+
+참고한 [framework](https://github.com/yheun03/framework)는 Nuxt 기반입니다. 이 프로젝트는 기존 Vue 3 + Vite + JavaScript를 유지하면서 루트의 `app.vue`, `pages`, `layouts`, 프로젝트별 컴포넌트·SCSS·이미지와 `i18n`, `utils`, `server/api` 배치 규칙을 따릅니다. `~`는 프로젝트 루트를 가리킵니다. 사용하지 않는 라우터·스토어·타입 폴더나 Nuxt 의존성을 추가하지 않습니다.
+
+기본 브랜드·SEO·이미지 경로는 `project.config.js`, 탐지 반경은 `utils/geo.js`에서 관리합니다. 반경 안내 문구와 경계 테스트는 같은 값을 사용합니다.
+
+## 항공사 데이터와 누락 시 매칭
+
+항공사 이름을 직접 작성한 코드별 목록은 사용하지 않습니다. [OpenFlights 공식 데이터](https://openflights.org/data.php#airline)에서 생성한 `assets/data/airlines.json`에 이름·IATA·ICAO를 함께 보관합니다. 자세한 출처·가공 조건·라이선스는 `assets/data/README.md`, 정확한 원본 버전과 체크섬은 JSON의 `source`에 기록됩니다.
+
+- 현재 운항과 일치한다고 확인된 API의 IATA/ICAO 코드가 있으면 우선 사용합니다.
+- 없으면 호출부호의 ICAO 접두사 또는 IATA 편명 접두사를 데이터셋과 매칭합니다. 예: `KAL1428 → KAL → KE / Korean Air`.
+- API 키가 없거나 운항 상세가 확인되지 않아도 주변 항공기의 호출부호로 항공사 매칭을 수행합니다. 이 결과로 공항·예정 시간을 추정하지는 않습니다.
+- 중복 코드로 항공사를 특정할 수 없거나 호출부호가 기체 등록번호와 같으면 임의로 매칭하지 않습니다. IATA가 없는 항공사에 가짜 코드를 부여하지 않습니다.
+- 호출부호 기반 결과는 추정 출처를 갖습니다. 이름에는 원본 데이터의 언어를 사용하며 별도 수동 번역 표를 만들지 않습니다.
+- OpenFlights의 `Active=Y` 행을 사용하지만, 공식 GitHub 데이터는 수시 갱신 스냅샷이므로 현재 운항 여부나 최신성을 보장하지 않습니다.
+
+데이터를 갱신하려면 다음 명령을 실행합니다. 일반 실행·빌드는 네트워크나 AirLabs 이름 조회 API 없이 저장된 스냅샷을 사용합니다.
+
+```sh
+npm run data:update:airlines
+```
+
+갱신 스크립트는 공식 CSV를 커밋에 고정해 다운로드하고, CSV 파싱·검증에 성공한 경우에만 기존 파일을 교체합니다. 새 데이터와 그 `source` 변경을 확인한 뒤 함께 버전 관리하세요.
 
 ## 데이터 출처
 
 - [adsb.lol API](https://api.adsb.lol/docs) · [공개 데이터와 ODbL 안내](https://www.adsb.lol/docs/open-data/api/)
+- [OpenFlights 항공사 데이터](https://openflights.org/data.php#airline) · [ODbL 1.0](https://opendatacommons.org/licenses/odbl/1-0/)
 - [AirLabs Flight API](https://airlabs.co/docs/flight) · [요금제](https://airlabs.co/#pricing)
 - [방향 센서 권한](https://developer.mozilla.org/en-US/docs/Web/API/DeviceOrientationEvent/requestPermission_static) · [Safari 나침반 정확도](https://developer.apple.com/documentation/webkitjs/deviceorientationevent/1804769-webkitcompassaccuracy)
 

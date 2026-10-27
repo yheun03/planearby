@@ -1,3 +1,5 @@
+import { resolveAirline } from '~/utils/airlines.js'
+
 export const previewCenter = { lat: 37.5665, lon: 126.978 }
 
 // Fictional observations for the explicitly labeled preview. Never mixed with live data.
@@ -5,7 +7,6 @@ export const exampleFlights = [
   {
     id: 'example-ke',
     callsign: 'KAL1428',
-    airlineCode: 'KE',
     type: 'B738',
     lat: 37.684456,
     lon: 127.08116,
@@ -18,7 +19,6 @@ export const exampleFlights = [
   {
     id: 'example-oz',
     callsign: 'AAR102',
-    airlineCode: 'OZ',
     type: 'A321',
     lat: 37.465635,
     lon: 127.275107,
@@ -31,7 +31,6 @@ export const exampleFlights = [
   {
     id: 'example-7c',
     callsign: 'JJA1301',
-    airlineCode: '7C',
     type: 'B738',
     lat: 37.290271,
     lon: 126.742852,
@@ -44,7 +43,6 @@ export const exampleFlights = [
   {
     id: 'example-tw',
     callsign: 'TWB281',
-    airlineCode: 'TW',
     type: 'B738',
     lat: 37.766206,
     lon: 126.539344,
@@ -54,19 +52,11 @@ export const exampleFlights = [
     depTime: '12:20',
     arrTime: '14:10',
   },
-].map((flight) => ({ ...flight, detailsStatus: 'example' }))
-
-export const airlines = {
-  KE: { ko: '대한항공', en: 'Korean Air', ja: '大韓航空', color: '#8dc5df' },
-  OZ: { ko: '아시아나항공', en: 'Asiana Airlines', ja: 'アシアナ航空', color: '#d7b8a0' },
-  '7C': { ko: '제주항공', en: 'Jeju Air', ja: 'チェジュ航空', color: '#eda16c' },
-  TW: { ko: '티웨이항공', en: 'T’way Air', ja: 'ティーウェイ航空', color: '#bdcf9a' },
-  LJ: { ko: '진에어', en: 'Jin Air', ja: 'ジンエアー', color: '#b7d276' },
-  BX: { ko: '에어부산', en: 'Air Busan', ja: 'エアプサン', color: '#89b9d4' },
-  RS: { ko: '에어서울', en: 'Air Seoul', ja: 'エアソウル', color: '#8acbb9' },
-  NH: { ko: '전일본공수', en: 'ANA', ja: '全日本空輸', color: '#9baed8' },
-  JL: { ko: '일본항공', en: 'Japan Airlines', ja: '日本航空', color: '#e09b96' },
-}
+].map((flight) => ({
+  ...flight,
+  ...resolveAirline({ callsign: flight.callsign }),
+  detailsStatus: 'example',
+}))
 
 export const airports = {
   ICN: { ko: '인천', en: 'Incheon', ja: '仁川' },

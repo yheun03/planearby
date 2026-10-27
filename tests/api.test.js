@@ -5,7 +5,8 @@ import { once } from 'node:events'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { createApiHandler, isMatchingFlight } from '../server/api.js'
+import { createApiHandler, isMatchingFlight } from '../server/api/aircraft.js'
+import { SEARCH_RADIUS_KM, SEARCH_RADIUS_NM } from '../utils/geo.js'
 
 const timestamp = Date.UTC(2026, 9, 27, 4)
 const observed = { id: 'abc123', callsign: 'KAL1428', lat: 37.5675, lon: 126.978, type: 'B738' }
@@ -22,9 +23,24 @@ const positionResponse = {
       alt_baro: 12000,
     },
     { hex: 'midrange', flight: 'MID12', lat: 37.59, lon: 126.978 },
-    { hex: 'edge-inside', flight: 'EDGE12', lat: 38.016070249825894, lon: 126.978 },
-    { hex: 'edge-outside', flight: 'EDGE13', lat: 38.016250113898636, lon: 126.978 },
-    { hex: 'outside', flight: 'OUT12', lat: 38.03, lon: 126.978 },
+    {
+      hex: 'edge-inside',
+      flight: 'EDGE12',
+      lat: 37.5665 + (SEARCH_RADIUS_KM - 0.01) / 111.1950802335329,
+      lon: 126.978,
+    },
+    {
+      hex: 'edge-outside',
+      flight: 'EDGE13',
+      lat: 37.5665 + (SEARCH_RADIUS_KM + 0.01) / 111.1950802335329,
+      lon: 126.978,
+    },
+    {
+      hex: 'outside',
+      flight: 'OUT12',
+      lat: 37.5665 + (SEARCH_RADIUS_KM + 2) / 111.1950802335329,
+      lon: 126.978,
+    },
     { hex: 'stale', flight: 'OLD12', lat: 37.567, lon: 126.978, seen_pos: 50 },
     { hex: 'ground', flight: 'GND12', lat: 37.567, lon: 126.978, alt_baro: 'ground' },
     { hex: 'invalid', lat: null, lon: 126.978 },
@@ -135,7 +151,7 @@ test('cross-origin session creation is rejected', async () => {
   }
 })
 
-test('nearby data includes aircraft up to 50 km and excludes farther, stale, ground, and invalid positions', async () => {
+test('nearby data includes aircraft within the configured radius and excludes farther, stale, ground, and invalid positions', async () => {
   const f = await fixture()
   try {
     const { id } = await f.start()
@@ -147,11 +163,14 @@ test('nearby data includes aircraft up to 50 km and excludes farther, stale, gro
       ['abc123', 'midrange', 'edge-inside'],
     )
     assert.equal(body.aircraft[0].callsign, 'KAL1428')
+    assert.equal(body.aircraft[0].airlineCode, 'KE')
+    assert.equal(body.aircraft[0].airlineName, 'Korean Air')
+    assert.equal(body.aircraft[0].airlineSource, 'callsign')
     assert.equal(body.detailsAvailable, false)
     assert.equal(response.headers.get('cache-control'), 'no-store')
     await f.request(`/nearby?session=${id}`)
     assert.equal(f.calls.length, 1, 'rapid repeat polls reuse the server cache')
-    assert.ok(f.calls[0].endsWith('/27'), '50 km must be requested as 27 nautical miles')
+    assert.ok(f.calls[0].endsWith(`/${SEARCH_RADIUS_NM}`), 'the request uses nautical miles')
     assert.match(f.requestHeaders[0]['User-Agent'], /Planearby.*https:\/\//)
   } finally {
     await f.close()
@@ -211,6 +230,8 @@ test('concurrent detail requests reuse one paid call and never disclose the serv
       assert.equal(body.detailsStatus, 'verified')
       assert.equal(body.depTime, '12:00')
       assert.equal(body.arrTime, '14:00')
+      assert.equal(body.airlineCode, 'KE')
+      assert.equal(body.airlineSource, 'api')
       assert.equal(JSON.stringify(body).includes('server-test-key'), false)
     }
     assert.equal(f.calls.filter((url) => url.includes('airlabs.co')).length, 1)
@@ -238,6 +259,30 @@ test('unverified details do not expose a different flight’s route', async () =
     assert.deepEqual(await (await f.request(`/flight?session=${id}&callsign=KAL1428`)).json(), {
       detailsStatus: 'unverified',
     })
+  } finally {
+    await f.close()
+  }
+})
+
+test('verified details without an airline keep the callsign-derived IATA and name', async () => {
+  const f = await fixture({
+    apiKey: 'server-test-key',
+    fetchImpl: async (url) =>
+      Response.json(
+        String(url).includes('adsb.lol')
+          ? positionResponse
+          : { response: { ...detailResponse, airline_iata: null, airline_icao: null } },
+      ),
+  })
+  try {
+    const { id } = await f.start()
+    await f.request(`/nearby?session=${id}`)
+    const body = await (await f.request(`/flight?session=${id}&callsign=KAL1428`)).json()
+    assert.equal(body.detailsStatus, 'verified')
+    assert.equal(body.airlineCode, 'KE')
+    assert.equal(body.airlineName, 'Korean Air')
+    assert.equal(body.airlineSource, 'callsign')
+    assert.equal(body.dep, 'ICN')
   } finally {
     await f.close()
   }

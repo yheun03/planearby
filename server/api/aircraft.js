@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto'
+import { resolveAirline } from '../../utils/airlines.js'
 import { mkdirSync, readFileSync, writeFileSync, renameSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
-import { distanceKm, SEARCH_RADIUS_KM, SEARCH_RADIUS_NM } from '../shared/geo.js'
+import { distanceKm, SEARCH_RADIUS_KM, SEARCH_RADIUS_NM } from '../../utils/geo.js'
 
 const WINDOW_MS = 30_000
 const validNumber = (value) => typeof value === 'number' && Number.isFinite(value)
@@ -223,8 +224,10 @@ export function createApiHandler({
                     lon: item.lon,
                     track: validNumber(item.track) ? ((item.track % 360) + 360) % 360 : null,
                     type: typeof item.t === 'string' ? item.t : null,
+                    registration: typeof item.r === 'string' ? item.r : null,
                   }))
                   .filter((item) => item.id && distanceKm(session, item) <= SEARCH_RADIUS_KM)
+                  .map((item) => ({ ...item, ...resolveAirline(item) }))
                   .sort((a, b) => distanceKm(session, a) - distanceKm(session, b))
                 session.observed = new Map(
                   aircraft.filter((item) => item.callsign).map((item) => [item.callsign, item]),
@@ -268,7 +271,11 @@ export function createApiHandler({
                 : null
             return {
               detailsStatus: 'verified',
-              airlineCode: code(detail.airline_iata),
+              ...resolveAirline({
+                ...session.observed.get(callsign),
+                airlineIata: code(detail.airline_iata),
+                airlineIcao: code(detail.airline_icao),
+              }),
               type: code(detail.aircraft_icao) || session.observed.get(callsign).type,
               dep: code(detail.dep_iata),
               arr: code(detail.arr_iata),

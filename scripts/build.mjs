@@ -10,7 +10,7 @@ const server = await createServer({
   appType: 'custom',
 })
 try {
-  const { default: App } = await server.ssrLoadModule('/src/App.vue')
+  const { default: App } = await server.ssrLoadModule('/app.vue')
   const html = await renderToString(createSSRApp(App))
   const document = await readFile('dist/index.html', 'utf8')
   await writeFile('dist/index.html', document.replace('<!--app-html-->', html))

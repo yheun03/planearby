@@ -1,0 +1,38 @@
+@use '../../abstract' as *;
+
+:root {
+  font-family: $font-sans;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  --page: #060606;
+  --surface: #131313;
+  --surface-subtle: #1c1c1c;
+  --text: #efeee6;
+  --text-secondary: #aaa9a3;
+  --text-muted: #8b8b85;
+  --border: #33332e;
+  --radar-line: #383834;
+  --radar-inner: #252522;
+  --aircraft: #7e7e78;
+  --accent: #ffd000;
+  --accent-soft: #262209;
+  --accent-text: #ffd000;
+  color-scheme: dark;
+}
+:root[data-theme='light'] {
+  --page: #f5f4ef;
+  --surface: #fffefa;
+  --surface-subtle: #edede5;
+  --text: #22231f;
+  --text-secondary: #62635b;
+  --text-muted: #707167;
+  --border: #d6d6ca;
+  --radar-line: #bdbeb1;
+  --radar-inner: #d6d7cb;
+  --aircraft: #707267;
+  --accent: #966a00;
+  --accent-soft: #f1e8c9;
+  --accent-text: #896000;
+  color-scheme: light;
+}

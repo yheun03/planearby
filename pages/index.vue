@@ -19,16 +19,16 @@ import {
   Sun,
   X,
 } from '@lucide/vue'
-import AircraftIcon from './components/AircraftIcon.vue'
-import SplitFlap from './components/SplitFlap.vue'
-import { messages } from './data/messages.js'
+import PlanearbyAircraftIcon from '~/components/projects/planearby/PlanearbyAircraftIcon.vue'
+import PlanearbySplitFlap from '~/components/projects/planearby/PlanearbySplitFlap.vue'
+import { I18N_MESSAGES as messages } from '~/i18n/index.js'
+import { projectConfig } from '~/project.config.js'
 import {
   aircraftModels,
-  airlines,
   airports,
   exampleFlights,
   previewCenter,
-} from './data/flights.js'
+} from '~/assets/data/projects/planearby/flights.js'
 import {
   bearingDegrees,
   compassHeading,
@@ -36,7 +36,7 @@ import {
   normalizeDegrees,
   relativeBearing,
   SEARCH_RADIUS_KM,
-} from '../shared/geo.js'
+} from '~/utils/geo.js'
 
 const language = ref('ko')
 const theme = ref('dark')
@@ -85,7 +85,7 @@ let permissionController
 
 const t = (key, values = {}) => {
   let text = messages[language.value][key] ?? messages.en[key] ?? key
-  Object.entries(values).forEach(([name, value]) => {
+  Object.entries({ radius: SEARCH_RADIUS_KM, ...values }).forEach(([name, value]) => {
     text = text.replaceAll(`{${name}}`, String(value))
   })
   return text
@@ -210,8 +210,7 @@ const emptyText = computed(() =>
   ),
 )
 
-const airlineName = (flight) =>
-  airlines[flight.airlineCode]?.[language.value] || flight.airlineCode || t('missing')
+const airlineName = (flight) => flight.airlineName || flight.airlineCode || t('missing')
 const airportName = (code) => airports[code]?.[language.value] || code || t('missing')
 const modelName = (type) => aircraftModels[type] || type || t('missing')
 const flightName = (flight) => flight.callsign || flight.id.toUpperCase()
@@ -567,7 +566,10 @@ function applyPreferences() {
     ?.setAttribute('content', { ko: 'ko_KR', en: 'en_US', ja: 'ja_JP' }[language.value])
   document
     .querySelector('meta[name="theme-color"]')
-    ?.setAttribute('content', isDark.value ? '#060606' : '#f5f4ef')
+    ?.setAttribute(
+      'content',
+      isDark.value ? projectConfig.themeColor : projectConfig.themeColorLight,
+    )
   try {
     localStorage.setItem(
       'planearby-preferences',
@@ -667,144 +669,87 @@ onUnmounted(() => {
   >
     {{ t('skip') }}
   </a>
-  <div class="app-shell">
-    <header class="header">
-      <div class="header__identity">
-        <a
-          class="wordmark"
-          href="#main"
-          aria-label="Planearby"
-        >
-          Planearby
-          <span>.</span>
-        </a>
-        <span class="header__count">
-          {{ aircraft.length }} {{ t('aircraftLegend') }} / {{ SEARCH_RADIUS_KM }} km
-        </span>
-        <span class="header__status">{{ statusLabel }}</span>
-      </div>
-      <div class="scan-controls">
-        <span>{{ t('simpleScanHint') }}</span>
-        <button
-          v-if="active"
-          class="scan-button"
-          @click="finishSession()"
-        >
-          <Square
-            aria-hidden="true"
-            :size="13"
-          />
-          {{ t('stop') }}
-          <span>{{ remaining }}s</span>
-        </button>
-        <button
-          v-else
-          class="scan-button"
-          @click="startScan"
-        >
-          <ScanLine
-            aria-hidden="true"
-            :size="15"
-          />
-          {{ state === 'idle' ? t('start') : t('restart') }}
-        </button>
-      </div>
-    </header>
+  <header class="header">
+    <div class="header__identity">
+      <a
+        class="wordmark"
+        href="#main"
+        :aria-label="projectConfig.serviceName"
+      >
+        {{ projectConfig.serviceName }}
+        <span>.</span>
+      </a>
+      <span class="header__count">
+        {{ aircraft.length }} {{ t('aircraftLegend') }} / {{ SEARCH_RADIUS_KM }} km
+      </span>
+      <span class="header__status">{{ statusLabel }}</span>
+    </div>
+    <div class="scan-controls">
+      <span>{{ t('simpleScanHint') }}</span>
+      <button
+        v-if="active"
+        class="scan-button"
+        @click="finishSession()"
+      >
+        <Square
+          aria-hidden="true"
+          :size="13"
+        />
+        {{ t('stop') }}
+        <span>{{ remaining }}s</span>
+      </button>
+      <button
+        v-else
+        class="scan-button"
+        @click="startScan"
+      >
+        <ScanLine
+          aria-hidden="true"
+          :size="15"
+        />
+        {{ state === 'idle' ? t('start') : t('restart') }}
+      </button>
+    </div>
+  </header>
 
-    <main
-      id="main"
-      class="dashboard"
-      tabindex="-1"
-    >
-      <h1 class="sr-only">{{ t('hero') }}</h1>
-      <div class="sky-view">
-        <section
-          class="flight-board"
-          aria-labelledby="fids-title"
-          :aria-busy="state === 'locating' || (state === 'tracking' && !lastUpdated)"
+  <main
+    id="main"
+    class="dashboard"
+    tabindex="-1"
+  >
+    <h1 class="sr-only">{{ t('hero') }}</h1>
+    <div class="sky-view">
+      <section
+        class="flight-board"
+        aria-labelledby="fids-title"
+        :aria-busy="state === 'locating' || (state === 'tracking' && !lastUpdated)"
+      >
+        <div class="flight-board__header">
+          <div>
+            <h2 id="fids-title">{{ t('flightInformation') }}</h2>
+            <span>FLIGHT INFORMATION</span>
+          </div>
+          <div class="flight-board__clock">
+            <span>{{ t('localTime') }}</span>
+            <PlanearbySplitFlap :text="clockText" />
+          </div>
+        </div>
+        <div
+          v-if="selectedFlight"
+          class="flight-board__content"
+          aria-live="polite"
+          aria-atomic="true"
         >
-          <div class="flight-board__header">
+          <dl class="flight-board__identity">
             <div>
-              <h2 id="fids-title">{{ t('flightInformation') }}</h2>
-              <span>FLIGHT INFORMATION</span>
-            </div>
-            <div class="flight-board__clock">
-              <span>{{ t('localTime') }}</span>
-              <SplitFlap :text="clockText" />
-            </div>
-          </div>
-          <div
-            v-if="selectedFlight"
-            class="flight-board__content"
-            aria-live="polite"
-            aria-atomic="true"
-          >
-            <dl class="flight-board__identity">
-              <div>
-                <dt>
-                  {{ t('airline') }}
-                  <span>Airline</span>
-                </dt>
-                <dd>
-                  <SplitFlap
-                    v-if="selectedFlight.airlineCode"
-                    :text="selectedFlight.airlineCode"
-                    :cycle="selectionVersion"
-                  />
-                  <span
-                    v-else
-                    class="flight-board__missing"
-                  >
-                    {{ t('missing') }}
-                  </span>
-                  <small>{{ airlineName(selectedFlight) }}</small>
-                </dd>
-              </div>
-              <div>
-                <dt>
-                  {{ t('flightNumber') }}
-                  <span>Flight No.</span>
-                </dt>
-                <dd>
-                  <SplitFlap
-                    class="split-flap--callsign"
-                    :class="{ 'split-flap--long': flightName(selectedFlight).length > 8 }"
-                    :text="flightName(selectedFlight)"
-                    :cycle="selectionVersion"
-                  />
-                </dd>
-              </div>
-              <div>
-                <dt>
-                  {{ t('aircraft') }}
-                  <span>Aircraft</span>
-                </dt>
-                <dd>
-                  <SplitFlap
-                    v-if="selectedFlight.type"
-                    :text="selectedFlight.type"
-                    :cycle="selectionVersion"
-                  />
-                  <span
-                    v-else
-                    class="flight-board__missing"
-                  >
-                    {{ t('missing') }}
-                  </span>
-                  <small>{{ modelName(selectedFlight.type) }}</small>
-                </dd>
-              </div>
-            </dl>
-            <div class="board-route">
-              <div class="board-route__airport">
-                <h3>
-                  {{ t('departure') }}
-                  <span>From</span>
-                </h3>
-                <SplitFlap
-                  v-if="selectedFlight.dep"
-                  class="split-flap--airport"
-                  :text="selectedFlight.dep"
+              <dt>
+                {{ t('airline') }}
+                <span>Airline</span>
+              </dt>
+              <dd>
+                <PlanearbySplitFlap
+                  v-if="selectedFlight.airlineCode"
+                  :text="selectedFlight.airlineCode"
                   :cycle="selectionVersion"
                 />
                 <span
@@ -813,40 +758,44 @@ onUnmounted(() => {
                 >
                   {{ t('missing') }}
                 </span>
-                <p>{{ airportName(selectedFlight.dep) }}</p>
-                <div class="board-route__time">
-                  <span>{{ t('scheduled') }}</span>
-                  <SplitFlap
-                    v-if="selectedFlight.depTime"
-                    class="split-flap--time"
-                    :text="selectedFlight.depTime"
-                    :cycle="selectionVersion"
-                  />
+                <small
+                  :title="
+                    selectedFlight.airlineSource === 'callsign' ? t('airlineInferred') : undefined
+                  "
+                >
+                  {{ airlineName(selectedFlight) }}
                   <span
-                    v-else
-                    class="flight-board__missing"
+                    v-if="selectedFlight.airlineSource === 'callsign'"
+                    class="sr-only"
                   >
-                    {{ t('missing') }}
+                    · {{ t('airlineInferred') }}
                   </span>
-                </div>
-              </div>
-              <div
-                class="board-route__path"
-                aria-hidden="true"
-              >
-                <span />
-                <AircraftIcon />
-                <span />
-              </div>
-              <div class="board-route__airport">
-                <h3>
-                  {{ t('arrival') }}
-                  <span>To</span>
-                </h3>
-                <SplitFlap
-                  v-if="selectedFlight.arr"
-                  class="split-flap--airport"
-                  :text="selectedFlight.arr"
+                </small>
+              </dd>
+            </div>
+            <div>
+              <dt>
+                {{ t('flightNumber') }}
+                <span>Flight No.</span>
+              </dt>
+              <dd>
+                <PlanearbySplitFlap
+                  class="split-flap--callsign"
+                  :class="{ 'split-flap--long': flightName(selectedFlight).length > 8 }"
+                  :text="flightName(selectedFlight)"
+                  :cycle="selectionVersion"
+                />
+              </dd>
+            </div>
+            <div>
+              <dt>
+                {{ t('aircraft') }}
+                <span>Aircraft</span>
+              </dt>
+              <dd>
+                <PlanearbySplitFlap
+                  v-if="selectedFlight.type"
+                  :text="selectedFlight.type"
                   :cycle="selectionVersion"
                 />
                 <span
@@ -855,527 +804,598 @@ onUnmounted(() => {
                 >
                   {{ t('missing') }}
                 </span>
-                <p>{{ airportName(selectedFlight.arr) }}</p>
-                <div class="board-route__time">
-                  <span>{{ t('scheduled') }}</span>
-                  <SplitFlap
-                    v-if="selectedFlight.arrTime"
-                    class="split-flap--time"
-                    :text="selectedFlight.arrTime"
-                    :cycle="selectionVersion"
-                  />
-                  <span
-                    v-else
-                    class="flight-board__missing"
-                  >
-                    {{ t('missing') }}
-                  </span>
-                </div>
-              </div>
+                <small>{{ modelName(selectedFlight.type) }}</small>
+              </dd>
             </div>
-            <dl class="flight-board__telemetry">
-              <div>
-                <dt>
-                  {{ t('distance') }}
-                  <span>Distance</span>
-                </dt>
-                <dd>
-                  <SplitFlap
-                    class="split-flap--small"
-                    :text="
-                      selectedFlight.distance >= 1
-                        ? selectedFlight.distance.toFixed(1)
-                        : String(Math.round(selectedFlight.distance * 1000)).padStart(4, '0')
-                    "
-                    :cycle="selectionVersion"
-                  />
-                  <small>{{ selectedFlight.distance >= 1 ? 'km' : 'm' }}</small>
-                </dd>
-              </div>
-              <div>
-                <dt>
-                  {{ t('heading') }}
-                  <span>Track</span>
-                </dt>
-                <dd>
-                  <SplitFlap
-                    v-if="Number.isFinite(selectedFlight.track)"
-                    class="split-flap--small"
-                    :text="String(Math.round(selectedFlight.track) % 360).padStart(3, '0')"
-                    :cycle="selectionVersion"
-                  />
-                  <span
-                    v-else
-                    class="flight-board__missing"
-                  >
-                    {{ t('missing') }}
-                  </span>
-                  <small>
-                    °
-                    {{
-                      Number.isFinite(selectedFlight.track)
-                        ? trackDirection(selectedFlight.track)
-                        : ''
-                    }}
-                  </small>
-                </dd>
-              </div>
-            </dl>
-            <p class="flight-board__position">
-              <Navigation2
-                aria-hidden="true"
-                :size="12"
-              />
-              {{ relativePosition }}
-              <span>·</span>
-              {{ selectedBearing }}
-            </p>
-            <p class="flight-board__note">
-              {{
-                selectedFlight.detailsStatus === 'unverified'
-                  ? t('unverified')
-                  : selectedFlight.detailsStatus === 'loading'
-                    ? t('loadingDetails')
-                    : t('localAirportTime')
-              }}
-            </p>
-          </div>
-          <div
-            v-else
-            class="fids-empty"
-          >
-            <h3>{{ emptyTitle }}</h3>
-            <p>{{ emptyText }}</p>
-          </div>
-          <div class="flight-board__footer">
-            <span class="flight-board__page">
-              {{ String(aircraft.length ? selectedIndex : 0).padStart(2, '0') }}
-              <i>/</i>
-              {{ String(aircraft.length).padStart(2, '0') }}
-            </span>
-            <span>{{ t('autoRotate') }}</span>
-            <button
-              :aria-label="rotationPaused ? t('resumeRotation') : t('pauseRotation')"
-              :aria-pressed="rotationPaused"
-              @click="rotationPaused = !rotationPaused"
-            >
-              <Play
-                v-if="rotationPaused"
-                aria-hidden="true"
-                :size="13"
-              />
-              <Pause
-                v-else
-                aria-hidden="true"
-                :size="13"
-              />
-            </button>
-          </div>
-        </section>
-
-        <section
-          class="radar-panel"
-          aria-labelledby="radar-title"
-        >
-          <h2
-            id="radar-title"
-            class="sr-only"
-          >
-            {{ t('radar') }}
-          </h2>
-          <div
-            class="radar"
-            role="group"
-            :aria-label="t('radarLabel')"
-          >
-            <div
-              class="radar__grid"
-              aria-hidden="true"
-            >
-              <span class="radar__forward" />
-              <span class="radar__ring radar__ring--outer" />
-              <span class="radar__ring radar__ring--middle" />
-              <span class="radar__ring radar__ring--inner" />
-              <span class="radar__axis radar__axis--vertical" />
-              <span class="radar__axis radar__axis--horizontal" />
-            </div>
-            <span
-              v-for="(cardinal, index) in ['N', 'E', 'S', 'W']"
-              :key="cardinal"
-              class="radar__cardinal"
-              :style="cardinalPosition(index * 90)"
-              aria-hidden="true"
-            >
-              {{ cardinal }}
-            </span>
-            <div
-              class="radar__you"
-              :aria-label="source === 'preview' ? t('sampleYou') : t('you')"
-              role="img"
-            />
-            <button
-              v-for="flight in aircraft"
-              :key="flight.id"
-              class="radar-aircraft"
-              :class="{
-                'radar-aircraft--selected': selectedFlight?.id === flight.id,
-                'radar-aircraft--label-left':
-                  Math.sin((relativeBearing(flight.bearing, viewHeading) * Math.PI) / 180) *
-                    (flight.distance / SEARCH_RADIUS_KM) >
-                  0.45,
-              }"
-              :style="aircraftPosition(flight)"
-              :aria-label="`${flightName(flight)}, ${flight.distance.toFixed(2)} km, ${t('bearing')} ${Math.round(flight.bearing)}°, ${t('heading')} ${formattedTrack(flight.track)}`"
-              :aria-pressed="selectedFlight?.id === flight.id"
-              @click="selectFlight(flight.id)"
-            >
-              <AircraftIcon
-                v-if="Number.isFinite(flight.track)"
-                :style="{ transform: `rotate(${relativeBearing(flight.track, viewHeading)}deg)` }"
+          </dl>
+          <div class="board-route">
+            <div class="board-route__airport">
+              <h3>
+                {{ t('departure') }}
+                <span>From</span>
+              </h3>
+              <PlanearbySplitFlap
+                v-if="selectedFlight.dep"
+                class="split-flap--airport"
+                :text="selectedFlight.dep"
+                :cycle="selectionVersion"
               />
               <span
                 v-else
-                class="radar-aircraft__unknown"
+                class="flight-board__missing"
               >
-                ?
+                {{ t('missing') }}
               </span>
-              <span class="radar-aircraft__label">
-                {{ flightName(flight) }}
-                <small>{{ flight.distance.toFixed(2) }} km</small>
+              <p>{{ airportName(selectedFlight.dep) }}</p>
+              <div class="board-route__time">
+                <span>{{ t('scheduled') }}</span>
+                <PlanearbySplitFlap
+                  v-if="selectedFlight.depTime"
+                  class="split-flap--time"
+                  :text="selectedFlight.depTime"
+                  :cycle="selectionVersion"
+                />
+                <span
+                  v-else
+                  class="flight-board__missing"
+                >
+                  {{ t('missing') }}
+                </span>
+              </div>
+            </div>
+            <div
+              class="board-route__path"
+              aria-hidden="true"
+            >
+              <span />
+              <PlanearbyAircraftIcon />
+              <span />
+            </div>
+            <div class="board-route__airport">
+              <h3>
+                {{ t('arrival') }}
+                <span>To</span>
+              </h3>
+              <PlanearbySplitFlap
+                v-if="selectedFlight.arr"
+                class="split-flap--airport"
+                :text="selectedFlight.arr"
+                :cycle="selectionVersion"
+              />
+              <span
+                v-else
+                class="flight-board__missing"
+              >
+                {{ t('missing') }}
               </span>
-            </button>
+              <p>{{ airportName(selectedFlight.arr) }}</p>
+              <div class="board-route__time">
+                <span>{{ t('scheduled') }}</span>
+                <PlanearbySplitFlap
+                  v-if="selectedFlight.arrTime"
+                  class="split-flap--time"
+                  :text="selectedFlight.arrTime"
+                  :cycle="selectionVersion"
+                />
+                <span
+                  v-else
+                  class="flight-board__missing"
+                >
+                  {{ t('missing') }}
+                </span>
+              </div>
+            </div>
           </div>
-          <div class="radar-panel__direction">
+          <dl class="flight-board__telemetry">
+            <div>
+              <dt>
+                {{ t('distance') }}
+                <span>Distance</span>
+              </dt>
+              <dd>
+                <PlanearbySplitFlap
+                  class="split-flap--small"
+                  :text="
+                    selectedFlight.distance >= 1
+                      ? selectedFlight.distance.toFixed(1)
+                      : String(Math.round(selectedFlight.distance * 1000)).padStart(4, '0')
+                  "
+                  :cycle="selectionVersion"
+                />
+                <small>{{ selectedFlight.distance >= 1 ? 'km' : 'm' }}</small>
+              </dd>
+            </div>
+            <div>
+              <dt>
+                {{ t('heading') }}
+                <span>Track</span>
+              </dt>
+              <dd>
+                <PlanearbySplitFlap
+                  v-if="Number.isFinite(selectedFlight.track)"
+                  class="split-flap--small"
+                  :text="String(Math.round(selectedFlight.track) % 360).padStart(3, '0')"
+                  :cycle="selectionVersion"
+                />
+                <span
+                  v-else
+                  class="flight-board__missing"
+                >
+                  {{ t('missing') }}
+                </span>
+                <small>
+                  °
+                  {{
+                    Number.isFinite(selectedFlight.track)
+                      ? trackDirection(selectedFlight.track)
+                      : ''
+                  }}
+                </small>
+              </dd>
+            </div>
+          </dl>
+          <p class="flight-board__position">
             <Navigation2
+              aria-hidden="true"
+              :size="12"
+            />
+            {{ relativePosition }}
+            <span>·</span>
+            {{ selectedBearing }}
+          </p>
+          <p class="flight-board__note">
+            {{
+              selectedFlight.detailsStatus === 'unverified'
+                ? t('unverified')
+                : selectedFlight.detailsStatus === 'loading'
+                  ? t('loadingDetails')
+                  : t('localAirportTime')
+            }}
+          </p>
+        </div>
+        <div
+          v-else
+          class="fids-empty"
+        >
+          <h3>{{ emptyTitle }}</h3>
+          <p>{{ emptyText }}</p>
+        </div>
+        <div class="flight-board__footer">
+          <span class="flight-board__page">
+            {{ String(aircraft.length ? selectedIndex : 0).padStart(2, '0') }}
+            <i>/</i>
+            {{ String(aircraft.length).padStart(2, '0') }}
+          </span>
+          <span>{{ t('autoRotate') }}</span>
+          <button
+            :aria-label="rotationPaused ? t('resumeRotation') : t('pauseRotation')"
+            :aria-pressed="rotationPaused"
+            @click="rotationPaused = !rotationPaused"
+          >
+            <Play
+              v-if="rotationPaused"
               aria-hidden="true"
               :size="13"
             />
-            <span>{{ t('viewingDirection') }}</span>
-            <button @click="settingsDialog.showModal()">{{ headingLabel }}</button>
-            <span>{{ headingMode === 'device' ? t('sensorMode') : t('manualMode') }}</span>
+            <Pause
+              v-else
+              aria-hidden="true"
+              :size="13"
+            />
+          </button>
+        </div>
+      </section>
+
+      <section
+        class="radar-panel"
+        aria-labelledby="radar-title"
+      >
+        <h2
+          id="radar-title"
+          class="sr-only"
+        >
+          {{ t('radar') }}
+        </h2>
+        <div
+          class="radar"
+          role="group"
+          :aria-label="t('radarLabel')"
+        >
+          <div
+            class="radar__grid"
+            aria-hidden="true"
+          >
+            <span class="radar__forward" />
+            <span class="radar__ring radar__ring--outer" />
+            <span class="radar__ring radar__ring--middle" />
+            <span class="radar__ring radar__ring--inner" />
+            <span class="radar__axis radar__axis--vertical" />
+            <span class="radar__axis radar__axis--horizontal" />
           </div>
-          <p class="radar-panel__caption">{{ t('radarCaption') }}</p>
+          <span
+            v-for="(cardinal, index) in ['N', 'E', 'S', 'W']"
+            :key="cardinal"
+            class="radar__cardinal"
+            :style="cardinalPosition(index * 90)"
+            aria-hidden="true"
+          >
+            {{ cardinal }}
+          </span>
+          <div
+            class="radar__you"
+            :aria-label="source === 'preview' ? t('sampleYou') : t('you')"
+            role="img"
+          />
           <button
-            v-if="isTouchDevice && headingMode !== 'device'"
-            class="compass-button"
+            v-for="flight in aircraft"
+            :key="flight.id"
+            class="radar-aircraft"
+            :class="{
+              'radar-aircraft--selected': selectedFlight?.id === flight.id,
+              'radar-aircraft--label-left':
+                Math.sin((relativeBearing(flight.bearing, viewHeading) * Math.PI) / 180) *
+                  (flight.distance / SEARCH_RADIUS_KM) >
+                0.45,
+            }"
+            :style="aircraftPosition(flight)"
+            :aria-label="`${flightName(flight)}, ${flight.distance.toFixed(2)} km, ${t('bearing')} ${Math.round(flight.bearing)}°, ${t('heading')} ${formattedTrack(flight.track)}`"
+            :aria-pressed="selectedFlight?.id === flight.id"
+            @click="selectFlight(flight.id)"
+          >
+            <PlanearbyAircraftIcon
+              v-if="Number.isFinite(flight.track)"
+              :style="{ transform: `rotate(${relativeBearing(flight.track, viewHeading)}deg)` }"
+            />
+            <span
+              v-else
+              class="radar-aircraft__unknown"
+            >
+              ?
+            </span>
+            <span class="radar-aircraft__label">
+              {{ flightName(flight) }}
+              <small>{{ flight.distance.toFixed(2) }} km</small>
+            </span>
+          </button>
+        </div>
+        <div class="radar-panel__direction">
+          <Navigation2
+            aria-hidden="true"
+            :size="13"
+          />
+          <span>{{ t('viewingDirection') }}</span>
+          <button @click="settingsDialog.showModal()">{{ headingLabel }}</button>
+          <span>{{ headingMode === 'device' ? t('sensorMode') : t('manualMode') }}</span>
+        </div>
+        <p class="radar-panel__caption">{{ t('radarCaption') }}</p>
+        <button
+          v-if="isTouchDevice && headingMode !== 'device'"
+          class="compass-button"
+          :disabled="compassWaiting"
+          @click="enableCompass"
+        >
+          <Compass
+            aria-hidden="true"
+            :size="14"
+          />
+          {{ compassWaiting ? t('compassWaiting') : t('enableCompass') }}
+        </button>
+        <p
+          v-if="isTouchDevice && compassMessage && headingMode !== 'device'"
+          class="radar-panel__sensor-message"
+          role="status"
+        >
+          {{ t(compassMessage) }}
+        </p>
+      </section>
+    </div>
+    <div
+      class="scan-message"
+      :class="{ 'scan-message--error': errorKey }"
+      :role="errorKey ? 'alert' : 'status'"
+      aria-live="polite"
+    >
+      <p>
+        {{
+          errorKey
+            ? t(errorKey)
+            : source === 'preview'
+              ? t('simplePreview')
+              : active
+                ? t('liveText')
+                : t('endedText')
+        }}
+      </p>
+      <button
+        v-if="errorKey"
+        @click="showPreview"
+      >
+        {{ t('showPreview') }}
+      </button>
+      <p v-if="detailNotice">{{ t(detailNotice) }}</p>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <span :title="coordinateText">
+      {{ locationText }}
+      <template v-if="lastUpdated">
+        <span aria-hidden="true">·</span>
+        {{ t('updated') }} {{ updatedText }}
+      </template>
+    </span>
+    <p>
+      <a
+        href="https://www.adsb.lol/docs/open-data/api/"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        adsb.lol
+      </a>
+      <a
+        href="https://opendatacommons.org/licenses/odbl/1-0/"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        ODbL 1.0
+      </a>
+      <span>·</span>
+      <a
+        href="https://airlabs.co/docs/flight"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        AirLabs
+      </a>
+      <span>·</span>
+      <a
+        :href="projectConfig.airlineData.sourceUrl"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        OpenFlights
+      </a>
+    </p>
+  </footer>
+  <button
+    class="settings-fab"
+    :aria-label="t('settings')"
+    :title="t('settings')"
+    aria-haspopup="dialog"
+    @click="settingsDialog.showModal()"
+  >
+    <Settings2
+      aria-hidden="true"
+      :size="20"
+    />
+  </button>
+  <dialog
+    ref="settingsDialog"
+    class="settings-dialog"
+    aria-labelledby="settings-title"
+    aria-describedby="settings-intro"
+    @close="resetRotationTimer()"
+    @click="
+      (event) => {
+        if (event.target === settingsDialog) settingsDialog.close()
+      }
+    "
+  >
+    <div class="settings-dialog__content">
+      <div class="settings-dialog__heading">
+        <span class="settings-dialog__icon">
+          <Settings2
+            aria-hidden="true"
+            :size="22"
+          />
+        </span>
+        <button
+          class="icon-button"
+          :aria-label="t('close')"
+          @click="settingsDialog.close()"
+        >
+          <X
+            aria-hidden="true"
+            :size="21"
+          />
+        </button>
+      </div>
+      <h2 id="settings-title">{{ t('settings') }}</h2>
+      <p id="settings-intro">{{ t('settingsIntro') }}</p>
+      <fieldset class="setting-group">
+        <legend>{{ t('appearance') }}</legend>
+        <p>{{ t('appearanceHint') }}</p>
+        <div class="theme-options">
+          <label
+            v-for="option in ['light', 'dark', 'system']"
+            :key="option"
+            :class="{ 'theme-options__option--selected': theme === option }"
+            class="theme-options__option"
+          >
+            <input
+              v-model="theme"
+              type="radio"
+              name="theme"
+              :value="option"
+            />
+            <Sun
+              aria-hidden="true"
+              v-if="option === 'light'"
+              :size="21"
+            />
+            <Moon
+              aria-hidden="true"
+              v-else-if="option === 'dark'"
+              :size="21"
+            />
+            <Monitor
+              aria-hidden="true"
+              v-else
+              :size="21"
+            />
+            <span>{{ t(option) }}</span>
+            <Check
+              aria-hidden="true"
+              v-if="theme === option"
+              class="theme-options__check"
+              :size="13"
+            />
+          </label>
+        </div>
+      </fieldset>
+      <fieldset class="setting-group">
+        <legend>
+          <Globe2
+            aria-hidden="true"
+            :size="15"
+          />
+          {{ t('language') }}
+        </legend>
+        <p>{{ t('languageHint') }}</p>
+        <div class="language-options">
+          <label
+            v-for="option in [
+              { code: 'ko', name: '한국어' },
+              { code: 'en', name: 'English' },
+              { code: 'ja', name: '日本語' },
+            ]"
+            :key="option.code"
+            :lang="option.code"
+          >
+            <input
+              v-model="language"
+              type="radio"
+              name="language"
+              :value="option.code"
+            />
+            <span>{{ option.name }}</span>
+            <Check
+              aria-hidden="true"
+              v-if="language === option.code"
+              :size="15"
+            />
+          </label>
+        </div>
+      </fieldset>
+      <fieldset class="setting-group heading-setting">
+        <legend>
+          <Compass
+            aria-hidden="true"
+            :size="15"
+          />
+          {{ t('viewingDirection') }}
+        </legend>
+        <p>{{ t('manualHeadingHint') }}</p>
+        <div class="heading-setting__value">
+          <span>{{ headingLabel }}</span>
+          <label>
+            <span class="sr-only">{{ t('manualAngle') }}</span>
+            <input
+              type="number"
+              min="0"
+              max="359"
+              step="1"
+              :value="manualHeading"
+              @change="setManualHeading($event.target.value)"
+            />
+            <span>°</span>
+          </label>
+        </div>
+        <input
+          class="heading-setting__range"
+          type="range"
+          min="0"
+          max="359"
+          step="1"
+          :value="manualHeading"
+          :aria-label="t('manualAngle')"
+          :aria-valuetext="`${t(directionKey(manualHeading))} ${manualHeading}°`"
+          @input="setManualHeading($event.target.value)"
+        />
+        <div class="heading-setting__presets">
+          <button
+            v-for="angle in [0, 90, 180, 270]"
+            :key="angle"
+            :aria-pressed="headingMode === 'manual' && manualHeading === angle"
+            @click="setManualHeading(angle)"
+          >
+            {{ t(directionKey(angle)) }}
+            <small>{{ angle }}°</small>
+          </button>
+        </div>
+        <template v-if="isTouchDevice">
+          <p>{{ t('compassHint') }}</p>
+          <button
+            class="permission-button"
             :disabled="compassWaiting"
             @click="enableCompass"
           >
             <Compass
               aria-hidden="true"
-              :size="14"
+              :size="15"
             />
             {{ compassWaiting ? t('compassWaiting') : t('enableCompass') }}
-          </button>
-          <p
-            v-if="isTouchDevice && compassMessage && headingMode !== 'device'"
-            class="radar-panel__sensor-message"
-            role="status"
-          >
-            {{ t(compassMessage) }}
-          </p>
-        </section>
-      </div>
-      <div
-        class="scan-message"
-        :class="{ 'scan-message--error': errorKey }"
-        :role="errorKey ? 'alert' : 'status'"
-        aria-live="polite"
-      >
-        <p>
-          {{
-            errorKey
-              ? t(errorKey)
-              : source === 'preview'
-                ? t('simplePreview')
-                : active
-                  ? t('liveText')
-                  : t('endedText')
-          }}
-        </p>
-        <button
-          v-if="errorKey"
-          @click="showPreview"
-        >
-          {{ t('showPreview') }}
-        </button>
-        <p v-if="detailNotice">{{ t(detailNotice) }}</p>
-      </div>
-    </main>
-
-    <footer class="footer">
-      <span :title="coordinateText">
-        {{ locationText }}
-        <template v-if="lastUpdated">
-          <span aria-hidden="true">·</span>
-          {{ t('updated') }} {{ updatedText }}
-        </template>
-      </span>
-      <p>
-        <a
-          href="https://www.adsb.lol/docs/open-data/api/"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          adsb.lol
-        </a>
-        <a
-          href="https://opendatacommons.org/licenses/odbl/1-0/"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          ODbL 1.0
-        </a>
-        <span>·</span>
-        <a
-          href="https://airlabs.co/docs/flight"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          AirLabs
-        </a>
-      </p>
-    </footer>
-    <button
-      class="settings-fab"
-      :aria-label="t('settings')"
-      :title="t('settings')"
-      aria-haspopup="dialog"
-      @click="settingsDialog.showModal()"
-    >
-      <Settings2
-        aria-hidden="true"
-        :size="20"
-      />
-    </button>
-    <dialog
-      ref="settingsDialog"
-      class="settings-dialog"
-      aria-labelledby="settings-title"
-      aria-describedby="settings-intro"
-      @close="resetRotationTimer()"
-      @click="
-        (event) => {
-          if (event.target === settingsDialog) settingsDialog.close()
-        }
-      "
-    >
-      <div class="settings-dialog__content">
-        <div class="settings-dialog__heading">
-          <span class="settings-dialog__icon">
-            <Settings2
-              aria-hidden="true"
-              :size="22"
-            />
-          </span>
-          <button
-            class="icon-button"
-            :aria-label="t('close')"
-            @click="settingsDialog.close()"
-          >
-            <X
-              aria-hidden="true"
-              :size="21"
-            />
-          </button>
-        </div>
-        <h2 id="settings-title">{{ t('settings') }}</h2>
-        <p id="settings-intro">{{ t('settingsIntro') }}</p>
-        <fieldset class="setting-group">
-          <legend>{{ t('appearance') }}</legend>
-          <p>{{ t('appearanceHint') }}</p>
-          <div class="theme-options">
-            <label
-              v-for="option in ['light', 'dark', 'system']"
-              :key="option"
-              :class="{ 'theme-options__option--selected': theme === option }"
-              class="theme-options__option"
-            >
-              <input
-                v-model="theme"
-                type="radio"
-                name="theme"
-                :value="option"
-              />
-              <Sun
-                aria-hidden="true"
-                v-if="option === 'light'"
-                :size="21"
-              />
-              <Moon
-                aria-hidden="true"
-                v-else-if="option === 'dark'"
-                :size="21"
-              />
-              <Monitor
-                aria-hidden="true"
-                v-else
-                :size="21"
-              />
-              <span>{{ t(option) }}</span>
-              <Check
-                aria-hidden="true"
-                v-if="theme === option"
-                class="theme-options__check"
-                :size="13"
-              />
-            </label>
-          </div>
-        </fieldset>
-        <fieldset class="setting-group">
-          <legend>
-            <Globe2
-              aria-hidden="true"
-              :size="15"
-            />
-            {{ t('language') }}
-          </legend>
-          <p>{{ t('languageHint') }}</p>
-          <div class="language-options">
-            <label
-              v-for="option in [
-                { code: 'ko', name: '한국어' },
-                { code: 'en', name: 'English' },
-                { code: 'ja', name: '日本語' },
-              ]"
-              :key="option.code"
-              :lang="option.code"
-            >
-              <input
-                v-model="language"
-                type="radio"
-                name="language"
-                :value="option.code"
-              />
-              <span>{{ option.name }}</span>
-              <Check
-                aria-hidden="true"
-                v-if="language === option.code"
-                :size="15"
-              />
-            </label>
-          </div>
-        </fieldset>
-        <fieldset class="setting-group heading-setting">
-          <legend>
-            <Compass
-              aria-hidden="true"
-              :size="15"
-            />
-            {{ t('viewingDirection') }}
-          </legend>
-          <p>{{ t('manualHeadingHint') }}</p>
-          <div class="heading-setting__value">
-            <span>{{ headingLabel }}</span>
-            <label>
-              <span class="sr-only">{{ t('manualAngle') }}</span>
-              <input
-                type="number"
-                min="0"
-                max="359"
-                step="1"
-                :value="manualHeading"
-                @change="setManualHeading($event.target.value)"
-              />
-              <span>°</span>
-            </label>
-          </div>
-          <input
-            class="heading-setting__range"
-            type="range"
-            min="0"
-            max="359"
-            step="1"
-            :value="manualHeading"
-            :aria-label="t('manualAngle')"
-            :aria-valuetext="`${t(directionKey(manualHeading))} ${manualHeading}°`"
-            @input="setManualHeading($event.target.value)"
-          />
-          <div class="heading-setting__presets">
-            <button
-              v-for="angle in [0, 90, 180, 270]"
-              :key="angle"
-              :aria-pressed="headingMode === 'manual' && manualHeading === angle"
-              @click="setManualHeading(angle)"
-            >
-              {{ t(directionKey(angle)) }}
-              <small>{{ angle }}°</small>
-            </button>
-          </div>
-          <template v-if="isTouchDevice">
-            <p>{{ t('compassHint') }}</p>
-            <button
-              class="permission-button"
-              :disabled="compassWaiting"
-              @click="enableCompass"
-            >
-              <Compass
-                aria-hidden="true"
-                :size="15"
-              />
-              {{ compassWaiting ? t('compassWaiting') : t('enableCompass') }}
-              <ArrowUpRight
-                aria-hidden="true"
-                :size="15"
-              />
-            </button>
-          </template>
-          <p
-            v-if="compassMessage"
-            class="setting-group__message"
-            role="status"
-          >
-            {{ t(compassMessage) }}
-          </p>
-        </fieldset>
-        <div class="setting-group setting-group--location">
-          <div class="setting-group__title">
-            <h3>
-              <MapPin
-                aria-hidden="true"
-                :size="15"
-              />
-              {{ t('locationPermission') }}
-            </h3>
-            <span
-              :class="{ 'permission-badge--granted': permission === 'granted' }"
-              class="permission-badge"
-            >
-              {{ permissionLabel }}
-            </span>
-          </div>
-          <p>{{ t('permissionHint') }}</p>
-          <button
-            class="permission-button"
-            :disabled="checkingPermission || active"
-            @click="requestPermission"
-          >
-            <LocateFixed
-              aria-hidden="true"
-              :size="16"
-            />
-            {{ checkingPermission ? t('locating') : t('requestPermission') }}
             <ArrowUpRight
               aria-hidden="true"
               :size="15"
             />
           </button>
-          <p
-            v-if="permissionMessage"
-            class="setting-group__message"
-            role="status"
+        </template>
+        <p
+          v-if="compassMessage"
+          class="setting-group__message"
+          role="status"
+        >
+          {{ t(compassMessage) }}
+        </p>
+      </fieldset>
+      <div class="setting-group setting-group--location">
+        <div class="setting-group__title">
+          <h3>
+            <MapPin
+              aria-hidden="true"
+              :size="15"
+            />
+            {{ t('locationPermission') }}
+          </h3>
+          <span
+            :class="{ 'permission-badge--granted': permission === 'granted' }"
+            class="permission-badge"
           >
-            {{ t(permissionMessage) }}
-          </p>
+            {{ permissionLabel }}
+          </span>
         </div>
-        <div class="settings-dialog__saved">
-          <ShieldCheck
+        <p>{{ t('permissionHint') }}</p>
+        <button
+          class="permission-button"
+          :disabled="checkingPermission || active"
+          @click="requestPermission"
+        >
+          <LocateFixed
             aria-hidden="true"
-            :size="14"
+            :size="16"
           />
-          {{ t('saved') }}
-        </div>
+          {{ checkingPermission ? t('locating') : t('requestPermission') }}
+          <ArrowUpRight
+            aria-hidden="true"
+            :size="15"
+          />
+        </button>
+        <p
+          v-if="permissionMessage"
+          class="setting-group__message"
+          role="status"
+        >
+          {{ t(permissionMessage) }}
+        </p>
       </div>
-    </dialog>
-  </div>
+      <div class="settings-dialog__saved">
+        <ShieldCheck
+          aria-hidden="true"
+          :size="14"
+        />
+        {{ t('saved') }}
+      </div>
+    </div>
+  </dialog>
 </template>

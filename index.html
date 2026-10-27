@@ -8,11 +8,11 @@
     />
     <meta
       name="theme-color"
-      content="#060606"
+      content="%PROJECT_THEME_COLOR%"
     />
     <meta
       name="description"
-      content="지금 내 곁을 날아가는 비행기는 어디로 갈까요? Planearby에서 현재 위치 반경 50km의 항공편과 비행 방향을 30초 동안 살펴보세요."
+      content="%PROJECT_DESCRIPTION%"
     />
     <meta
       name="robots"
@@ -24,7 +24,7 @@
     />
     <meta
       property="og:site_name"
-      content="Planearby"
+      content="%PROJECT_NAME%"
     />
     <meta
       property="og:locale"
@@ -32,19 +32,19 @@
     />
     <meta
       property="og:title"
-      content="Planearby — 지금 내 곁을 날아가는 비행기"
+      content="%PROJECT_TITLE%"
     />
     <meta
       property="og:description"
-      content="내 위치를 중심으로 반경 50km, 30초의 작은 하늘 관측. 항공편 보드와 방향 레이더로 만나는 우리 동네 하늘."
+      content="%PROJECT_DESCRIPTION%"
     />
     <meta
       property="og:image"
-      content="/social-card.svg"
+      content="%PROJECT_OG_IMAGE%"
     />
     <meta
       name="twitter:card"
-      content="summary_large_image"
+      content="%PROJECT_TWITTER_CARD%"
     />
     <meta
       name="color-scheme"
@@ -53,7 +53,7 @@
     <link
       rel="icon"
       type="image/svg+xml"
-      href="/favicon.svg"
+      href="%PROJECT_FAVICON%"
     />
     <link
       rel="preconnect"
@@ -68,23 +68,8 @@
       href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;450;500;550;600;650;700;750;800&family=IBM+Plex+Mono:wght@400;450;500;600&display=swap"
       rel="stylesheet"
     />
-    <title>Planearby — 지금 내 곁을 날아가는 비행기</title>
-    <script
-      type="application/ld+json"
-      id="app-schema"
-    >
-      {
-        "@context": "https://schema.org",
-        "@type": "WebApplication",
-        "name": "Planearby",
-        "description": "사용자가 동의한 현재 위치를 기준으로 수평 거리 50km 이내의 항공기와 비행 방향을 최대 30초 동안 조회하는 서비스입니다.",
-        "applicationCategory": "TravelApplication",
-        "operatingSystem": "Any",
-        "inLanguage": ["ko", "en", "ja"],
-        "isAccessibleForFree": true,
-        "browserRequirements": "JavaScript and geolocation permission; HTTPS or localhost"
-      }
-    </script>
+    <title>%PROJECT_TITLE%</title>
+    <!--project-schema-->
   </head>
   <body>
     <div id="app"><!--app-html--></div>
@@ -94,7 +79,7 @@
     </noscript>
     <script
       type="module"
-      src="/src/main.js"
+      src="/main.js"
     ></script>
   </body>
 </html>

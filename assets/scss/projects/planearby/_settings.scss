@@ -1,0 +1,197 @@
+@use '../../abstract' as *;
+
+.settings-dialog {
+  position: fixed;
+  max-width: 460px;
+  width: calc(100% - 32px);
+  max-height: calc(100dvh - 48px);
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  color: var(--text);
+  background: var(--surface);
+  box-shadow: 0 20px 100px #0003;
+  &::backdrop {
+    background: #000b;
+    backdrop-filter: blur(5px);
+  }
+  &__content {
+    padding: 26px 28px 20px;
+  }
+  &__heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  &__icon {
+    @include flex-center;
+    width: 42px;
+    height: 42px;
+    border-radius: 11px;
+    background: var(--accent-soft);
+    color: var(--accent-text);
+  }
+  h2 {
+    font-size: 24px;
+    font-weight: 650;
+    letter-spacing: -0.8px;
+  }
+  #settings-intro {
+    margin-top: 7px;
+    font-size: 12px;
+    line-height: 1.8;
+    color: var(--text-secondary);
+  }
+  &__saved {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    justify-content: center;
+    padding: 17px 0 0;
+    border-top: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 10px;
+  }
+}
+.setting-group {
+  margin: 24px 0 0;
+  padding: 0;
+  border: 0;
+  legend,
+  h3 {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0;
+    color: var(--text);
+    font-size: 12px;
+    font-weight: 600;
+  }
+  > p {
+    margin-top: 6px;
+    color: var(--text-muted);
+    font-size: 11px;
+    line-height: 1.8;
+  }
+  &--location {
+    margin-bottom: 24px;
+  }
+  &__title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  &__message {
+    padding: 10px;
+    background: var(--accent-soft);
+    border-radius: 6px;
+  }
+}
+.theme-options {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 12px;
+  &__option {
+    position: relative;
+    @include flex-center;
+    flex-direction: column;
+    gap: 9px;
+    min-height: 80px;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    color: var(--text-secondary);
+    font-size: 11px;
+    cursor: pointer;
+    input {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      margin: 0;
+      cursor: pointer;
+    }
+    &:has(input:focus-visible) {
+      outline: 3px solid var(--accent);
+      outline-offset: 3px;
+    }
+    &--selected {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+      color: var(--accent-text);
+    }
+  }
+  &__check {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+  }
+}
+.language-options {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 12px;
+  > label {
+    position: relative;
+    @include flex-center;
+    gap: 6px;
+    min-height: 43px;
+    font-size: 11px;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    cursor: pointer;
+    > input {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      inset: 0;
+      opacity: 0;
+      margin: 0;
+      cursor: pointer;
+    }
+    &:has(input:checked) {
+      border-color: var(--accent);
+      color: var(--accent-text);
+      background: var(--accent-soft);
+    }
+    &:has(input:focus-visible) {
+      outline: 3px solid var(--accent);
+      outline-offset: 3px;
+    }
+  }
+}
+.permission-badge {
+  padding: 4px 7px;
+  font-size: 10px;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  &--granted {
+    background: var(--accent-soft);
+    border-color: transparent;
+    color: var(--accent-text);
+  }
+}
+.permission-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 43px;
+  margin-top: 12px;
+  padding: 8px 12px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  > svg:last-child {
+    margin-left: auto;
+  }
+  &:hover {
+    background: var(--accent-soft);
+  }
+}

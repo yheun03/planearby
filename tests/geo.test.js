@@ -8,11 +8,10 @@ import {
   relativeBearing,
   SEARCH_RADIUS_KM,
   SEARCH_RADIUS_NM,
-} from '../shared/geo.js'
+} from '../utils/geo.js'
 
-test('the nautical-mile request covers the 50 km radius without requesting an extra mile', () => {
-  assert.equal(SEARCH_RADIUS_KM, 50)
-  assert.equal(SEARCH_RADIUS_NM, 27)
+test('the nautical-mile request covers the configured km radius without requesting an extra mile', () => {
+  assert.ok(Number.isFinite(SEARCH_RADIUS_KM) && SEARCH_RADIUS_KM > 0)
   assert.ok(SEARCH_RADIUS_NM * 1.852 >= SEARCH_RADIUS_KM)
   assert.ok((SEARCH_RADIUS_NM - 1) * 1.852 < SEARCH_RADIUS_KM)
 })

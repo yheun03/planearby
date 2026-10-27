@@ -1,0 +1,73 @@
+.split-flap {
+  --flap-width: 23px;
+  --flap-height: 36px;
+  --flap-font: 26px;
+  display: inline-flex;
+  gap: 3px;
+  vertical-align: middle;
+  white-space: nowrap;
+
+  &__cell {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--flap-width);
+    height: var(--flap-height);
+    flex-shrink: 0;
+    overflow: hidden;
+    border: 1px solid #020711;
+    border-radius: 2px;
+    background: linear-gradient(#16202c 0 49%, #0d1520 51% 100%);
+    box-shadow:
+      0 1px 0 #ffffff0a,
+      inset 0 1px 1px #ffffff09;
+    color: #f0f0e7;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: var(--flap-font);
+    font-weight: 450;
+    line-height: var(--flap-height);
+    perspective: 140px;
+  }
+
+  &__character {
+    position: relative;
+  }
+
+  &__leaf {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(#16202c, #131c28);
+    text-align: center;
+    clip-path: inset(0 0 50% 0);
+    backface-visibility: hidden;
+    transform-origin: center;
+    animation: flap-turn 85ms ease-in forwards;
+  }
+
+  &__seam {
+    position: absolute;
+    z-index: 2;
+    top: calc(50% - 1px);
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: #050b13d9;
+    box-shadow: 0 1px 0 #ffffff06;
+  }
+}
+
+@keyframes flap-turn {
+  from {
+    transform: rotateX(0);
+  }
+  to {
+    transform: rotateX(-180deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .split-flap__leaf {
+    display: none;
+  }
+}

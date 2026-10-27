@@ -2,7 +2,7 @@ import { createServer } from 'node:http'
 import { createReadStream, existsSync } from 'node:fs'
 import { stat } from 'node:fs/promises'
 import { resolve, extname, sep } from 'node:path'
-import { createApiHandler } from './api.js'
+import { createApiHandler } from './api/aircraft.js'
 
 if (existsSync('.env')) process.loadEnvFile('.env')
 const api = createApiHandler()
