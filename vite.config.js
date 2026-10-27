@@ -1,8 +1,10 @@
 import { defineConfig, loadEnv } from 'vite'
 import { fileURLToPath } from 'node:url'
+import { execFileSync } from 'node:child_process'
 import vue from '@vitejs/plugin-vue'
-import { createApiHandler } from './server/api/aircraft.js'
+import { githubPagesTarget } from './utils/deployment.js'
 import { projectConfig } from './project.config.js'
+import aircraftApi from './api/aircraft.js'
 
 const escapeHtml = (value) =>
   String(value).replace(
@@ -19,12 +21,38 @@ const escapeHtml = (value) =>
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
+  let pages
+  try {
+    pages = githubPagesTarget(
+      execFileSync('git', ['config', '--get', 'remote.origin.url'], { encoding: 'utf8' }),
+    )
+  } catch {
+    /* A local checkout can run without a remote. */
+  }
+  if (mode === 'pages' && !pages)
+    throw new Error('GitHub origin remote is required for Pages deployment')
+  if (mode === 'pages' && !env.VITE_AIRCRAFT_API_URL)
+    throw new Error(
+      'GitHub Pages needs VITE_AIRCRAFT_API_URL pointing to your deployed /api/aircraft function; see .env.example',
+    )
+  const base = mode === 'pages' ? pages.base : projectConfig.baseURL
+  const configuredUrl = env.SITE_URL || projectConfig.siteUrl || (mode === 'pages' ? pages.url : '')
+  const siteUrl = configuredUrl ? `${configuredUrl.replace(/\/+$/, '')}/` : ''
 
   return {
-    base: projectConfig.baseURL,
+    base,
     resolve: { alias: { '~': fileURLToPath(new URL('.', import.meta.url)) } },
     plugins: [
       vue(),
+      {
+        name: 'local-aircraft-api',
+        configureServer(server) {
+          server.middlewares.use('/api/aircraft', aircraftApi)
+        },
+        configurePreviewServer(server) {
+          server.middlewares.use('/api/aircraft', aircraftApi)
+        },
+      },
       {
         name: 'project-metadata',
         transformIndexHtml: {
@@ -35,8 +63,10 @@ export default defineConfig(({ mode }) => {
               PROJECT_TITLE: projectConfig.seo.title,
               PROJECT_DESCRIPTION: projectConfig.seo.description,
               PROJECT_THEME_COLOR: projectConfig.themeColor,
-              PROJECT_FAVICON: `${projectConfig.baseURL}${projectConfig.favicon}`,
-              PROJECT_OG_IMAGE: `${projectConfig.baseURL}${projectConfig.seo.ogImage}`,
+              PROJECT_FAVICON: `${base}${projectConfig.favicon}`,
+              PROJECT_OG_IMAGE: siteUrl
+                ? new URL(projectConfig.seo.ogImage, siteUrl).href
+                : `${base}${projectConfig.seo.ogImage}`,
               PROJECT_TWITTER_CARD: projectConfig.seo.twitterCard,
             }
             const schema = {
@@ -48,9 +78,16 @@ export default defineConfig(({ mode }) => {
               operatingSystem: 'Any',
               inLanguage: ['ko', 'en', 'ja'],
               isAccessibleForFree: true,
+              ...(siteUrl ? { url: siteUrl } : {}),
               browserRequirements: 'JavaScript and geolocation permission; HTTPS or localhost',
             }
             return html
+              .replace(
+                '<!--project-canonical-->',
+                siteUrl
+                  ? `<link rel="canonical" href="${escapeHtml(siteUrl)}"><meta property="og:url" content="${escapeHtml(siteUrl)}">`
+                  : '',
+              )
               .replace(/%([A-Z_]+)%/g, (placeholder, key) =>
                 key in values ? escapeHtml(values[key]) : placeholder,
               )
@@ -62,16 +99,19 @@ export default defineConfig(({ mode }) => {
         },
       },
       {
-        name: 'planearby-api',
-        configureServer(server) {
-          server.middlewares.use(
-            '/api',
-            createApiHandler({
-              apiKey: env.AIRLABS_API_KEY,
-              userAgent: env.ADSB_USER_AGENT,
-              monthlyLimit: env.AIRLABS_MONTHLY_LIMIT,
-            }),
-          )
+        name: 'search-engine-files',
+        generateBundle() {
+          this.emitFile({
+            type: 'asset',
+            fileName: 'robots.txt',
+            source: `User-agent: *\nAllow: /\n${siteUrl ? `Sitemap: ${new URL('sitemap.xml', siteUrl).href}\n` : ''}`,
+          })
+          if (siteUrl)
+            this.emitFile({
+              type: 'asset',
+              fileName: 'sitemap.xml',
+              source: `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>${escapeHtml(siteUrl)}</loc></url></urlset>`,
+            })
         },
       },
     ],

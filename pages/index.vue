@@ -23,18 +23,17 @@ import PlanearbyAircraftIcon from '~/components/projects/planearby/PlanearbyAirc
 import PlanearbySplitFlap from '~/components/projects/planearby/PlanearbySplitFlap.vue'
 import { I18N_MESSAGES as messages } from '~/i18n/index.js'
 import { projectConfig } from '~/project.config.js'
-import {
-  airports,
-  exampleFlights,
-  previewCenter,
-} from '~/assets/data/projects/planearby/flights.js'
+import { exampleFlights, previewCenter } from '~/assets/data/projects/planearby/flights.js'
 import { aircraftModels, isSupportedAircraft } from '~/utils/aircraft.js'
+import { createFlightClient } from '~/utils/flights.js'
+import { formatFlightNumber } from '~/utils/airlines.js'
 import {
   bearingDegrees,
   compassHeading,
   distanceKm,
   normalizeDegrees,
   relativeBearing,
+  POSITION_REFRESH_MS,
   SEARCH_RADIUS_KM,
 } from '~/utils/geo.js'
 
@@ -55,7 +54,7 @@ const compassMessage = ref('')
 const compassWaiting = ref(false)
 const isTouchDevice = ref(false)
 const clockNow = ref(null)
-const detailsAvailable = ref(false)
+const flightClient = createFlightClient()
 const detailRequests = new Map()
 const seenFlightIds = new Set()
 let rotationTimer
@@ -64,24 +63,24 @@ let compassTimer
 let compassGeneration = 0
 let lastSensorRender = 0
 const location = ref(null)
-const remaining = ref(30)
 const lastUpdated = ref(null)
 const errorKey = ref('')
-const detailNotice = ref('')
 const permission = ref('prompt')
 const permissionMessage = ref('')
 const checkingPermission = ref(false)
 const detailCache = new Map()
 let controller
 let refreshTimer
-let countdownTimer
-let sessionId
 let generation = 0
-let deadline = 0
 let permissionStatus
 let colorScheme
-let pendingStop = Promise.resolve()
 let permissionController
+let pendingRefreshGeneration = null
+let automaticScanPending = true
+let retryAt = 0
+let failedPolls = 0
+let lastPollAt = -Infinity
+let resumeOnPageShow = false
 
 const t = (key, values = {}) => {
   let text = messages[language.value][key] ?? messages.en[key] ?? key
@@ -96,6 +95,13 @@ const isDark = computed(
 )
 const center = computed(() => (source.value === 'preview' ? previewCenter : location.value))
 const aircraft = computed(() => {
+  if (
+    source.value === 'live' &&
+    state.value === 'tracking' &&
+    lastUpdated.value &&
+    clockNow.value - lastUpdated.value > 30000
+  )
+    return []
   const result = flights.value
     .map((flight) => ({
       ...flight,
@@ -158,9 +164,12 @@ const selectedBearing = computed(() => {
   ]
   return t('positionPhrase', { direction: t(`direction${direction}`) })
 })
-const statusLabel = computed(() =>
-  source.value === 'preview' ? t('sample') : active.value ? t('live') : t('lastResult'),
-)
+const statusLabel = computed(() => {
+  if (source.value === 'preview') return t('sample')
+  if (active.value) return t(errorKey.value ? 'retrying' : 'live')
+  if (state.value === 'error') return t('errorTitle')
+  return t(lastUpdated.value ? 'lastResult' : 'ready')
+})
 const locationText = computed(() =>
   source.value === 'preview'
     ? t('previewLocation')
@@ -187,34 +196,33 @@ const permissionLabel = computed(() =>
         : 'prompt',
   ),
 )
-const emptyTitle = computed(() =>
-  t(
-    state.value === 'locating'
-      ? 'locating'
-      : state.value === 'tracking' && !lastUpdated.value
-        ? 'loadingTitle'
-        : state.value === 'error'
-          ? 'errorTitle'
-          : 'emptyTitle',
-  ),
-)
-const emptyText = computed(() =>
-  t(
-    state.value === 'locating'
-      ? 'locatingText'
-      : state.value === 'tracking' && !lastUpdated.value
-        ? 'loadingText'
-        : state.value === 'error'
-          ? errorKey.value
-          : 'emptyText',
-  ),
-)
+const emptyTitle = computed(() => {
+  if (errorKey.value) return t(active.value ? 'retrying' : 'errorTitle')
+  if (state.value === 'locating') return t('locating')
+  if (state.value === 'tracking' && !lastUpdated.value) return t('loadingTitle')
+  return t('emptyTitle')
+})
+const emptyText = computed(() => {
+  if (errorKey.value) return t(errorKey.value)
+  if (state.value === 'locating') return t('locatingText')
+  if (state.value === 'tracking' && !lastUpdated.value) return t('loadingText')
+  return t('emptyText')
+})
 
-const airlineName = (flight) => flight.airlineName || flight.airlineCode || t('missing')
-const airportName = (code, name) => airports[code]?.[language.value] || name || code || t('missing')
+const airlineName = (flight) =>
+  (language.value === 'ko' && flight.airlineNameKo) ||
+  flight.airlineName ||
+  flight.airlineCode ||
+  t('missing')
+const airportName = (code, name) => name || code || t('missing')
 const modelName = (type) => aircraftModels[type] || type || t('missing')
-const flightName = (flight) => flight.callsign || flight.id.toUpperCase()
-const formattedTrack = (track) => (Number.isFinite(track) ? `${Math.round(track) % 360}°` : '—')
+const flightName = (flight) => formatFlightNumber(flight) || flight.id.toUpperCase()
+const trackDigits = (track) =>
+  Number.isFinite(track)
+    ? String(Math.round(normalizeDegrees(track)) % 360).padStart(3, '0')
+    : '---'
+const formattedTrack = (track) =>
+  Number.isFinite(track) ? `${trackDigits(track)}°` : t('trackUnknown')
 const trackDirection = (track) =>
   Number.isFinite(track)
     ? ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(track / 45) % 8]
@@ -259,35 +267,15 @@ function getLocation(signal) {
           uiKey: { 1: 'denied', 2: 'unavailable', 3: 'timeout' }[error.code] || 'unavailable',
         })
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
+      { enableHighAccuracy: false, timeout: 15000, maximumAge: 0 },
     )
   })
-}
-
-async function api(path, options = {}) {
-  const response = await fetch(`/api${path}`, { ...options, signal: controller?.signal })
-  const body = await response.json()
-  if (!response.ok)
-    throw {
-      uiKey:
-        { QUOTA_EXCEEDED: 'quota', RATE_LIMIT: 'rateLimit', SESSION_EXPIRED: 'expired' }[
-          body.code
-        ] || 'apiError',
-    }
-  return body
 }
 
 function finishSession(nextState = 'ended') {
   generation += 1
   controller?.abort()
-  clearTimeout(refreshTimer)
-  clearInterval(countdownTimer)
-  if (sessionId) {
-    pendingStop = fetch(`/api/session/${sessionId}`, { method: 'DELETE', keepalive: true }).catch(
-      () => {},
-    )
-    sessionId = null
-  }
+  clearInterval(refreshTimer)
   state.value = nextState
   if (nextState === 'ended' || nextState === 'error') {
     flights.value = flights.value.map((flight) =>
@@ -299,27 +287,40 @@ function finishSession(nextState = 'ended') {
 }
 
 async function refreshFlights(currentGeneration) {
+  if (
+    currentGeneration !== generation ||
+    pendingRefreshGeneration === currentGeneration ||
+    state.value !== 'tracking'
+  )
+    return
+  pendingRefreshGeneration = currentGeneration
   try {
-    const response = await api(`/nearby?session=${encodeURIComponent(sessionId)}`)
+    if (Date.now() < retryAt || Date.now() - lastPollAt < POSITION_REFRESH_MS) return
+    lastPollAt = Date.now()
+    const nearby = await flightClient.nearby(location.value, controller.signal)
     if (generation !== currentGeneration) return
-    flights.value = response.aircraft.map((flight) => ({
-      ...flight,
-      ...(detailCache.get(flight.callsign) || {}),
-      detailsStatus:
-        detailCache.get(flight.callsign)?.detailsStatus ||
-        (response.detailsAvailable ? 'pending' : 'unavailable'),
-    }))
+    flights.value = nearby.map((flight) => {
+      const cached = detailCache.get(flight.callsign)
+      const detail = cached?.expiresAt > Date.now() ? cached.data : null
+      return { ...flight, ...detail, detailsStatus: detail?.detailsStatus || 'pending' }
+    })
     lastUpdated.value = Date.now()
-    detailsAvailable.value = response.detailsAvailable
+    errorKey.value = ''
+    retryAt = 0
+    failedPolls = 0
     if (!aircraft.value.some((flight) => flight.id === selectedId.value))
       selectedId.value = aircraft.value[0]?.id || null
-    await loadSelectedDetails(currentGeneration)
-    if (generation === currentGeneration && state.value === 'tracking')
-      refreshTimer = setTimeout(() => refreshFlights(currentGeneration), 7000)
+    void loadSelectedDetails(currentGeneration)
   } catch (error) {
     if (generation !== currentGeneration || error.name === 'AbortError') return
     errorKey.value = error.uiKey || 'apiError'
-    finishSession('error')
+    if (error.permanent) return finishSession('error')
+    failedPolls += 1
+    retryAt =
+      Date.now() +
+      Math.max(error.retryMs || 0, Math.min(300000, 5000 * 2 ** Math.min(failedPolls, 6)))
+  } finally {
+    if (pendingRefreshGeneration === currentGeneration) pendingRefreshGeneration = null
   }
 }
 
@@ -327,10 +328,8 @@ async function loadSelectedDetails(currentGeneration = generation) {
   const flight = selectedFlight.value
   if (
     !flight?.callsign ||
-    !detailsAvailable.value ||
     state.value !== 'tracking' ||
-    !sessionId ||
-    detailCache.has(flight.callsign)
+    detailCache.get(flight.callsign)?.expiresAt > Date.now()
   )
     return
   if (detailRequests.has(flight.callsign)) return detailRequests.get(flight.callsign)
@@ -339,18 +338,20 @@ async function loadSelectedDetails(currentGeneration = generation) {
   )
   const request = (async () => {
     try {
-      const detail = await api(
-        `/flight?session=${encodeURIComponent(sessionId)}&callsign=${encodeURIComponent(flight.callsign)}`,
-      )
+      const detail = await flightClient.route(flight.callsign, controller.signal)
       if (generation !== currentGeneration) return
-      detailCache.set(flight.callsign, detail)
+      detailCache.set(flight.callsign, {
+        data: detail,
+        expiresAt: Date.now() + (detail.detailsStatus === 'route' ? 21600000 : 60000),
+      })
       flights.value = flights.value.map((item) =>
         item.id === flight.id ? { ...item, ...detail } : item,
       )
     } catch (error) {
       if (generation !== currentGeneration || error.name === 'AbortError') return
-      errorKey.value = error.uiKey || 'apiError'
-      finishSession('error')
+      flights.value = flights.value.map((item) =>
+        item.id === flight.id ? { ...item, detailsStatus: 'unavailable' } : item,
+      )
     } finally {
       if (generation === currentGeneration) detailRequests.delete(flight.callsign)
     }
@@ -467,6 +468,7 @@ async function enableCompass() {
 
 async function startScan() {
   if (active.value) return
+  automaticScanPending = false
   finishSession('locating')
   const currentGeneration = generation
   controller = new AbortController()
@@ -475,18 +477,13 @@ async function startScan() {
   flights.value = []
   selectedId.value = null
   seenFlightIds.clear()
-  detailsAvailable.value = false
   detailRequests.clear()
   lastUpdated.value = null
   errorKey.value = ''
-  detailNotice.value = ''
   detailCache.clear()
-  remaining.value = 30
-  deadline = Date.now() + 30000
-  countdownTimer = setInterval(() => {
-    remaining.value = Math.max(0, Math.ceil((deadline - Date.now()) / 1000))
-    if (remaining.value <= 0) finishSession()
-  }, 200)
+  retryAt = 0
+  failedPolls = 0
+  lastPollAt = -Infinity
   try {
     const position = await getLocation(controller.signal)
     if (generation !== currentGeneration) return
@@ -496,21 +493,8 @@ async function startScan() {
       accuracy: position.coords.accuracy,
     }
     permission.value = 'granted'
-    await pendingStop
-    if (generation !== currentGeneration) return
-    const response = await api('/session', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        lat: location.value.lat,
-        lon: location.value.lon,
-        durationMs: Math.max(1, deadline - Date.now()),
-      }),
-    })
-    if (generation !== currentGeneration) return
-    sessionId = response.id
-    if (!response.schedulesAvailable) detailNotice.value = 'noScheduleSource'
     state.value = 'tracking'
+    refreshTimer = setInterval(() => void refreshFlights(currentGeneration), POSITION_REFRESH_MS)
     await refreshFlights(currentGeneration)
   } catch (error) {
     if (generation !== currentGeneration || error.name === 'AbortError') return
@@ -525,13 +509,10 @@ function showPreview() {
   source.value = 'preview'
   location.value = null
   errorKey.value = ''
-  detailNotice.value = ''
   lastUpdated.value = null
-  remaining.value = 30
   flights.value = exampleFlights.map((flight) => ({ ...flight }))
   selectedId.value = exampleFlights[0].id
   seenFlightIds.clear()
-  detailsAvailable.value = false
   detailRequests.clear()
 }
 
@@ -585,15 +566,41 @@ function applyPreferences() {
 }
 
 function stopWhenAway() {
+  resumeOnPageShow = active.value
   if (active.value) finishSession()
+}
+function handlePageShow(event) {
+  if (event.persisted && resumeOnPageShow) {
+    resumeOnPageShow = false
+    void startScan()
+  }
+}
+function startAutomaticScan() {
+  if (!automaticScanPending || document.hidden) return
+  void startScan()
+}
+function syncLocationPermission() {
+  permission.value = permissionStatus.state
+  if (
+    permission.value === 'denied' &&
+    source.value === 'live' &&
+    (active.value || !lastUpdated.value)
+  ) {
+    automaticScanPending = false
+    errorKey.value = 'denied'
+    finishSession('error')
+  }
 }
 function handleVisibility() {
   if (document.hidden) {
-    stopWhenAway()
     clearInterval(rotationTimer)
     stopCompass()
     compassMessage.value = ''
-  } else resetRotationTimer()
+  } else {
+    resetRotationTimer()
+    startAutomaticScan()
+    if (state.value === 'tracking') void refreshFlights(generation)
+  }
 }
 function handleColorScheme(event) {
   systemDark.value = event.matches
@@ -622,14 +629,13 @@ onMounted(async () => {
   resetRotationTimer()
   document.addEventListener('visibilitychange', handleVisibility)
   window.addEventListener('pagehide', stopWhenAway)
-  void startScan()
+  window.addEventListener('pageshow', handlePageShow)
+  startAutomaticScan()
   if (navigator.permissions) {
     try {
       permissionStatus = await navigator.permissions.query({ name: 'geolocation' })
-      permission.value = permissionStatus.state
-      permissionStatus.onchange = () => {
-        permission.value = permissionStatus.state
-      }
+      syncLocationPermission()
+      permissionStatus.onchange = syncLocationPermission
     } catch {
       /* A permission prompt can still be requested without this API. */
     }
@@ -658,6 +664,7 @@ onUnmounted(() => {
   permissionController?.abort()
   document.removeEventListener('visibilitychange', handleVisibility)
   window.removeEventListener('pagehide', stopWhenAway)
+  window.removeEventListener('pageshow', handlePageShow)
   colorScheme?.removeEventListener('change', handleColorScheme)
   if (permissionStatus) permissionStatus.onchange = null
 })
@@ -678,7 +685,6 @@ onUnmounted(() => {
         :aria-label="projectConfig.serviceName"
       >
         {{ projectConfig.serviceName }}
-        <span>.</span>
       </a>
       <span class="header__count">
         {{ aircraft.length }} {{ t('aircraftLegend') }} / {{ SEARCH_RADIUS_KM }} km
@@ -697,7 +703,6 @@ onUnmounted(() => {
           :size="13"
         />
         {{ t('stop') }}
-        <span>{{ remaining }}s</span>
       </button>
       <button
         v-else
@@ -816,33 +821,12 @@ onUnmounted(() => {
                 <span>From</span>
               </h3>
               <PlanearbySplitFlap
-                v-if="selectedFlight.dep"
                 class="split-flap--airport"
-                :text="selectedFlight.dep"
+                :text="selectedFlight.dep || 'NON'"
+                :aria-label="selectedFlight.dep || t('missing')"
                 :cycle="selectionVersion"
               />
-              <span
-                v-else
-                class="flight-board__missing"
-              >
-                {{ t('missing') }}
-              </span>
               <p>{{ airportName(selectedFlight.dep, selectedFlight.depName) }}</p>
-              <div class="board-route__time">
-                <span>{{ t('scheduled') }}</span>
-                <PlanearbySplitFlap
-                  v-if="selectedFlight.depTime"
-                  class="split-flap--time"
-                  :text="selectedFlight.depTime"
-                  :cycle="selectionVersion"
-                />
-                <span
-                  v-else
-                  class="flight-board__missing"
-                >
-                  {{ t('missing') }}
-                </span>
-              </div>
             </div>
             <div
               class="board-route__path"
@@ -858,33 +842,12 @@ onUnmounted(() => {
                 <span>To</span>
               </h3>
               <PlanearbySplitFlap
-                v-if="selectedFlight.arr"
                 class="split-flap--airport"
-                :text="selectedFlight.arr"
+                :text="selectedFlight.arr || 'NON'"
+                :aria-label="selectedFlight.arr || t('missing')"
                 :cycle="selectionVersion"
               />
-              <span
-                v-else
-                class="flight-board__missing"
-              >
-                {{ t('missing') }}
-              </span>
               <p>{{ airportName(selectedFlight.arr, selectedFlight.arrName) }}</p>
-              <div class="board-route__time">
-                <span>{{ t('scheduled') }}</span>
-                <PlanearbySplitFlap
-                  v-if="selectedFlight.arrTime"
-                  class="split-flap--time"
-                  :text="selectedFlight.arrTime"
-                  :cycle="selectionVersion"
-                />
-                <span
-                  v-else
-                  class="flight-board__missing"
-                >
-                  {{ t('missing') }}
-                </span>
-              </div>
             </div>
           </div>
           <dl class="flight-board__telemetry">
@@ -898,7 +861,7 @@ onUnmounted(() => {
                   class="split-flap--small"
                   :text="
                     selectedFlight.distance >= 1
-                      ? selectedFlight.distance.toFixed(1)
+                      ? selectedFlight.distance.toFixed(1).padStart(4, '0')
                       : String(Math.round(selectedFlight.distance * 1000)).padStart(4, '0')
                   "
                   :cycle="selectionVersion"
@@ -913,17 +876,11 @@ onUnmounted(() => {
               </dt>
               <dd>
                 <PlanearbySplitFlap
-                  v-if="Number.isFinite(selectedFlight.track)"
                   class="split-flap--small"
-                  :text="String(Math.round(selectedFlight.track) % 360).padStart(3, '0')"
+                  :text="trackDigits(selectedFlight.track)"
+                  :aria-label="formattedTrack(selectedFlight.track)"
                   :cycle="selectionVersion"
                 />
-                <span
-                  v-else
-                  class="flight-board__missing"
-                >
-                  {{ t('missing') }}
-                </span>
                 <small>
                   °
                   {{
@@ -944,24 +901,35 @@ onUnmounted(() => {
             <span>·</span>
             {{ selectedBearing }}
           </p>
-          <p class="flight-board__note">
+          <p
+            class="flight-board__note"
+            :role="errorKey ? 'alert' : 'status'"
+          >
             {{
-              selectedFlight.detailsStatus === 'route'
-                ? t('referenceRoute')
-                : selectedFlight.detailsStatus === 'unverified'
-                  ? t('unverified')
+              errorKey
+                ? t(errorKey)
+                : selectedFlight.detailsStatus === 'route'
+                  ? t('referenceRoute')
                   : selectedFlight.detailsStatus === 'loading'
                     ? t('loadingDetails')
-                    : t('localAirportTime')
+                    : ''
             }}
           </p>
         </div>
         <div
           v-else
           class="fids-empty"
+          :role="errorKey ? 'alert' : 'status'"
         >
           <h3>{{ emptyTitle }}</h3>
           <p>{{ emptyText }}</p>
+          <button
+            v-if="errorKey"
+            class="fids-empty__preview"
+            @click="showPreview"
+          >
+            {{ t('showPreview') }}
+          </button>
         </div>
         <div class="flight-board__footer">
           <span class="flight-board__page">
@@ -1092,31 +1060,6 @@ onUnmounted(() => {
         </p>
       </section>
     </div>
-    <div
-      class="scan-message"
-      :class="{ 'scan-message--error': errorKey }"
-      :role="errorKey ? 'alert' : 'status'"
-      aria-live="polite"
-    >
-      <p>
-        {{
-          errorKey
-            ? t(errorKey)
-            : source === 'preview'
-              ? t('simplePreview')
-              : active
-                ? t('liveText')
-                : t('endedText')
-        }}
-      </p>
-      <button
-        v-if="errorKey"
-        @click="showPreview"
-      >
-        {{ t('showPreview') }}
-      </button>
-      <p v-if="detailNotice">{{ t(detailNotice) }}</p>
-    </div>
   </main>
 
   <footer class="footer">
@@ -1152,19 +1095,19 @@ onUnmounted(() => {
       </a>
       <span>·</span>
       <a
-        href="https://airlabs.co/docs/flight"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        AirLabs
-      </a>
-      <span>·</span>
-      <a
         :href="projectConfig.airlineData.sourceUrl"
         target="_blank"
         rel="noopener noreferrer"
       >
         OpenFlights
+      </a>
+      <span>·</span>
+      <a
+        :href="projectConfig.domesticAirlineData.sourceUrl"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        {{ projectConfig.domesticAirlineData.name }}
       </a>
     </p>
   </footer>

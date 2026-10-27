@@ -49,7 +49,7 @@
   align-items: center;
   justify-content: center;
   gap: 7px;
-  min-height: 36px;
+  min-height: 44px;
   padding: 8px 12px;
   border: 1px solid var(--border);
   border-radius: 4px;
@@ -73,9 +73,9 @@
   flex-direction: column;
   justify-content: center;
   width: 100%;
-  max-width: 1520px;
+  max-width: 1640px;
   margin: 0 auto;
-  padding: 40px 60px 20px;
+  padding: 32px 32px 24px;
   &:focus {
     outline: none;
   }
@@ -84,40 +84,21 @@
   display: grid;
   flex: 1;
   grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+  grid-template-areas: 'board radar';
   align-items: center;
-  gap: clamp(40px, 6vw, 100px);
+  gap: clamp(32px, 4vw, 72px);
 }
 .flight-board {
+  grid-area: board;
   position: relative;
   min-width: 0;
   overflow: hidden;
-  padding: 19px 23px 0;
-  border: 2px solid #293647;
-  border-radius: 5px;
-  color: #e5e8e9;
-  background: linear-gradient(125deg, #192635, #101b29 55%, #0e1825);
-  box-shadow:
-    inset 0 1px 1px #ffffff0b,
-    0 6px 18px #0002;
+  padding: 24px 28px 0;
+  border: 1px solid var(--board-border);
+  border-radius: 3px;
+  color: var(--board-text);
+  background: var(--board-bg);
 
-  &::before,
-  &::after {
-    position: absolute;
-    width: 4px;
-    height: 4px;
-    content: '';
-    border: 1px solid #536070;
-    border-radius: 50%;
-    background: #14202c;
-  }
-  &::before {
-    top: 6px;
-    left: 6px;
-  }
-  &::after {
-    right: 6px;
-    bottom: 6px;
-  }
   &__header {
     display: flex;
     align-items: center;
@@ -125,18 +106,18 @@
     gap: 14px;
     min-height: 50px;
     padding-bottom: 14px;
-    border-bottom: 2px solid #070e18;
-    box-shadow: 0 1px 0 #ffffff09;
+    border-bottom: 2px solid var(--board-rule);
     h2 {
-      font-size: 17px;
+      color: var(--board-heading);
+      font-size: 22px;
       font-weight: 500;
       letter-spacing: -0.4px;
     }
     > div:first-child > span {
       display: block;
       margin-top: 4px;
-      color: #9ca8b6;
-      font-size: 9px;
+      color: var(--board-muted);
+      font-size: 11px;
       letter-spacing: 1.4px;
     }
   }
@@ -145,36 +126,36 @@
     align-items: center;
     gap: 8px;
     > span {
-      color: #bac2ca;
-      font-size: 10px;
+      color: var(--board-secondary);
+      font-size: 12px;
     }
     .split-flap {
-      --flap-width: 12px;
-      --flap-height: 21px;
-      --flap-font: 16px;
+      --flap-width: 15px;
+      --flap-height: 27px;
+      --flap-font: 21px;
       gap: 2px;
     }
   }
   &__identity {
     display: grid;
     grid-template-columns: 1.1fr 2.3fr 1.2fr;
-    gap: 18px;
+    gap: 20px;
     margin: 0;
-    padding: 19px 0 17px;
-    border-bottom: 1px solid #0007;
+    padding: 24px 0;
+    border-bottom: 1px solid var(--board-rule);
     > div {
       min-width: 0;
     }
     dt {
       margin-bottom: 9px;
-      font-size: 11px;
+      font-size: 14px;
       line-height: 1.3;
-      color: #d2d8de;
+      color: var(--board-heading);
       > span {
         display: block;
         margin-top: 2px;
-        font-size: 9px;
-        color: #9ca8b6;
+        font-size: 11px;
+        color: var(--board-muted);
       }
     }
     dd {
@@ -182,8 +163,8 @@
       > small {
         display: block;
         margin-top: 7px;
-        font-size: 10px;
-        color: #b2bdc9;
+        font-size: 13px;
+        color: var(--board-secondary);
         line-height: 1.5;
         overflow-wrap: anywhere;
       }
@@ -193,8 +174,8 @@
     display: inline-flex;
     align-items: center;
     min-height: 30px;
-    color: #b8c0c8;
-    font-size: 12px;
+    color: var(--board-secondary);
+    font-size: 15px;
     line-height: 1.6;
   }
   &__telemetry {
@@ -202,16 +183,16 @@
     grid-template-columns: 1fr 1fr;
     gap: 22px;
     margin: 0;
-    padding: 14px 0;
-    border-top: 1px solid #0007;
+    padding: 20px 0;
+    border-top: 1px solid var(--board-rule);
     dt {
       margin-bottom: 7px;
-      color: #c6cdd5;
-      font-size: 10px;
+      color: var(--board-secondary);
+      font-size: 14px;
       > span {
         margin-left: 6px;
-        color: #9ca8b6;
-        font-size: 9px;
+        color: var(--board-muted);
+        font-size: 11px;
       }
     }
     dd {
@@ -220,8 +201,8 @@
       gap: 5px;
       margin: 0;
       > small {
-        color: #b2bdc9;
-        font-size: 11px;
+        color: var(--board-secondary);
+        font-size: 14px;
       }
     }
   }
@@ -231,31 +212,32 @@
     flex-wrap: wrap;
     gap: 5px;
     padding-top: 1px;
-    color: #c3cbd2;
-    font-size: 11px;
+    color: var(--board-secondary);
+    font-size: 14px;
     line-height: 1.7;
     > svg {
-      color: #e2cd70;
+      color: var(--accent-text);
     }
     > span {
-      color: #6f8092;
+      color: var(--board-muted);
     }
   }
   &__note {
     margin-top: 8px;
-    padding-bottom: 14px;
-    color: #a9b5c2;
-    font-size: 10px;
+    min-height: calc(3.4em + 18px);
+    padding-bottom: 18px;
+    color: var(--board-muted);
+    font-size: 12px;
     line-height: 1.7;
   }
   &__footer {
     display: flex;
     align-items: center;
     gap: 9px;
-    min-height: 40px;
-    border-top: 2px solid #070e18;
-    color: #9ca8b6;
-    font-size: 9px;
+    min-height: 48px;
+    border-top: 2px solid var(--board-rule);
+    color: var(--board-muted);
+    font-size: 11px;
     > span:nth-child(2) {
       margin-left: auto;
     }
@@ -263,74 +245,72 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      width: 29px;
-      height: 29px;
+      width: 44px;
+      height: 44px;
       padding: 0;
-      border: 1px solid #3d4b5d;
+      border: 1px solid var(--board-border);
       border-radius: 3px;
-      color: #d9dfe5;
-      background: #111d2a;
+      color: var(--board-text);
+      background: var(--flap-bg);
       &:hover {
-        border-color: #e2cd70;
+        border-color: var(--accent-text);
       }
     }
   }
   &__page {
     font-family: $font-mono;
     font-size: 11px;
-    color: #d2d9df;
+    color: var(--board-text);
     > i {
       padding: 0 7px;
-      color: #66778b;
+      color: var(--board-muted);
       font-style: normal;
     }
   }
 }
 .split-flap--callsign {
-  --flap-width: clamp(17px, 1.8vw, 26px);
-  --flap-height: 36px;
-  --flap-font: 26px;
+  --flap-width: clamp(23px, 2vw, 34px);
+  --flap-height: 48px;
+  --flap-font: 35px;
 }
 .split-flap--airport {
-  --flap-width: 35px;
-  --flap-height: 47px;
-  --flap-font: 35px;
+  --flap-width: 45px;
+  --flap-height: 60px;
+  --flap-font: 44px;
   gap: 4px;
 }
-.split-flap--time {
-  --flap-width: 15px;
-  --flap-height: 25px;
-  --flap-font: 19px;
-  gap: 2px;
-}
 .split-flap--small {
-  --flap-width: 17px;
-  --flap-height: 26px;
-  --flap-font: 20px;
+  --flap-width: 26px;
+  --flap-height: 40px;
+  --flap-font: 29px;
   gap: 2px;
 }
 .board-route {
   display: flex;
   align-items: flex-start;
   gap: 19px;
-  padding: 18px 0 16px;
+  padding: 24px 0;
   &__airport {
-    min-width: 115px;
+    flex: 0 1 42%;
+    min-width: 0;
     > h3 {
       margin-bottom: 8px;
-      color: #d2d8de;
-      font-size: 11px;
+      color: var(--board-heading);
+      font-size: 14px;
       font-weight: 450;
       > span {
         margin-left: 6px;
-        color: #9ca8b6;
-        font-size: 9px;
+        color: var(--board-muted);
+        font-size: 11px;
       }
     }
     > p {
+      min-height: 1.6em;
       margin-top: 7px;
-      font-size: 11px;
-      color: #b9c3ce;
+      font-size: 14px;
+      color: var(--board-secondary);
+      overflow-wrap: anywhere;
+      line-height: 1.6;
     }
   }
   &__path {
@@ -338,26 +318,16 @@
     flex: 1;
     align-items: center;
     gap: 5px;
-    margin-top: 49px;
+    margin-top: 60px;
     > span {
       flex: 1;
-      border-top: 1px dashed #526177;
+      border-top: 1px dashed var(--board-muted);
     }
     > svg {
       width: 24px;
       height: 24px;
       transform: rotate(90deg);
-      color: #9ba8b7;
-    }
-  }
-  &__time {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin-top: 12px;
-    > span:first-child:not(.split-flap) {
-      font-size: 9px;
-      color: #9ca8b6;
+      color: var(--board-muted);
     }
   }
 }
@@ -368,7 +338,7 @@
   justify-content: center;
   flex-direction: column;
   h3 {
-    color: #e1e5e8;
+    color: var(--board-text);
     font-size: 23px;
     font-weight: 500;
     line-height: 1.6;
@@ -376,12 +346,22 @@
   p {
     max-width: 340px;
     margin-top: 20px;
-    color: #aeb9c5;
-    font-size: 12px;
+    color: var(--board-muted);
+    font-size: 14px;
     line-height: 1.9;
+  }
+  &__preview {
+    margin-top: 16px;
+    padding: 8px 0;
+    color: var(--accent-text);
+    background: transparent;
+    font-size: 14px;
+    text-decoration: underline;
+    text-underline-offset: 4px;
   }
 }
 .radar-panel {
+  grid-area: radar;
   min-width: 0;
   &__caption {
     margin-top: 25px;
@@ -449,8 +429,15 @@
   &__forward {
     position: absolute;
     inset: 7%;
-    border-radius: 50%;
-    background: conic-gradient(from -25deg, #e2c94b10 0deg 50deg, transparent 50deg 360deg);
+    &::before {
+      position: absolute;
+      top: 0;
+      left: calc(50% - 1px);
+      width: 2px;
+      height: 12px;
+      content: '';
+      background: var(--accent);
+    }
   }
   &__you {
     position: absolute;
@@ -467,9 +454,9 @@
   position: absolute;
   z-index: 2;
   @include flex-center;
-  width: 42px;
-  height: 42px;
-  margin: -21px 0 0 -21px;
+  width: 44px;
+  height: 44px;
+  margin: -22px 0 0 -22px;
   padding: 8px;
   color: var(--aircraft);
   border: 1px solid transparent;
@@ -538,31 +525,6 @@
     outline-color: var(--accent);
   }
 }
-.scan-message {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 5px;
-  min-height: 30px;
-  margin-top: 32px;
-  color: var(--text-muted);
-  text-align: center;
-  > p {
-    font-size: 11px;
-    line-height: 1.8;
-  }
-  > button {
-    padding: 6px 8px;
-    color: var(--accent-text);
-    background: transparent;
-    font-size: 11px;
-    text-decoration: underline;
-    text-underline-offset: 3px;
-  }
-  &--error {
-    color: var(--text-secondary);
-  }
-}
 .footer {
   display: flex;
   align-items: center;
@@ -592,8 +554,8 @@
   right: 23px;
   bottom: 20px;
   @include flex-center;
-  width: 42px;
-  height: 42px;
+  width: 44px;
+  height: 44px;
   padding: 0;
   color: var(--text-secondary);
   background: var(--surface);
@@ -625,7 +587,8 @@
     padding-left: 14px;
   }
   .sky-view {
-    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'radar' 'board';
     gap: 30px;
   }
   .flight-board {
@@ -634,46 +597,23 @@
   }
   .flight-board__identity {
     gap: 10px;
-    .split-flap {
-      --flap-width: 16px;
-      --flap-height: 29px;
-      --flap-font: 21px;
-      gap: 2px;
-    }
   }
   .flight-board__clock {
     gap: 4px;
-    > span {
-      display: none;
-    }
   }
   .board-route {
     gap: 10px;
     &__airport {
-      min-width: 90px;
+      min-width: 0;
     }
     &__path {
-      margin-top: 43px;
+      margin-top: 60px;
       gap: 3px;
       > svg {
         width: 19px;
         height: 19px;
       }
     }
-    &__time {
-      gap: 4px;
-    }
-  }
-  .split-flap--airport {
-    --flap-width: 28px;
-    --flap-height: 39px;
-    --flap-font: 29px;
-    gap: 3px;
-  }
-  .split-flap--time {
-    --flap-width: 12px;
-    --flap-height: 23px;
-    --flap-font: 17px;
   }
   .radar-panel__caption {
     font-size: 10px;
@@ -709,7 +649,7 @@
     }
   }
   .scan-button {
-    min-height: 38px;
+    min-height: 44px;
     white-space: nowrap;
     font-size: 10px;
   }
@@ -725,44 +665,65 @@
   }
   .flight-board__header {
     h2 {
-      font-size: 16px;
+      font-size: 20px;
     }
     > div:first-child > span {
-      font-size: 8px;
+      font-size: 10px;
       letter-spacing: 1px;
     }
   }
+  .flight-board__clock > span {
+    display: none;
+  }
   .flight-board__identity {
-    grid-template-columns: 1.1fr 2.2fr 1.1fr;
-    gap: 8px;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px 16px;
+    > div:nth-child(2) {
+      grid-column: 1 / -1;
+      grid-row: 1;
+    }
     dt {
-      font-size: 10px;
+      font-size: 13px;
       > span {
-        font-size: 8px;
+        font-size: 11px;
       }
     }
     .split-flap {
-      --flap-width: 14px;
-      --flap-height: 28px;
-      --flap-font: 20px;
+      --flap-width: 24px;
+      --flap-height: 40px;
+      --flap-font: 29px;
     }
     dd > small {
-      font-size: 9px;
+      font-size: 12px;
     }
   }
   .flight-board__identity .split-flap--long {
-    --flap-width: 11px;
-    --flap-font: 17px;
-    gap: 1px;
+    --flap-width: 22px;
+    --flap-font: 27px;
+    gap: 2px;
   }
   .board-route {
     gap: 12px;
     &__airport {
-      min-width: 93px;
+      min-width: 0;
+    }
+    &__path {
+      margin-top: 51px;
     }
   }
+  .split-flap--airport {
+    --flap-width: clamp(22px, 7vw, 34px);
+    --flap-height: 46px;
+    --flap-font: 34px;
+    gap: 3px;
+  }
+  .split-flap--small {
+    --flap-width: 22px;
+    --flap-height: 35px;
+    --flap-font: 26px;
+  }
   .flight-board__position {
-    font-size: 10px;
+    font-size: 12px;
   }
   .flight-board__telemetry {
     gap: 15px;
@@ -776,12 +737,6 @@
   .radar__cardinal {
     font-size: 15px;
   }
-  .scan-message {
-    margin-top: 25px;
-    > p {
-      font-size: 10px;
-    }
-  }
   .footer {
     min-height: 70px;
     padding-right: 43px;
@@ -790,8 +745,8 @@
   .settings-fab {
     right: 16px;
     bottom: 16px;
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
   }
 }
 @media (prefers-reduced-motion: reduce) {

@@ -1,13 +1,22 @@
 import dataset from '../assets/data/airlines.json' with { type: 'json' }
+import domesticDataset from '../assets/data/airlines-kr.json' with { type: 'json' }
 
 const normalize = (value) =>
   typeof value === 'string' ? value.trim().toUpperCase().replace(/\s+/g, '') : ''
 const code = (value, pattern) => (pattern.test(normalize(value)) ? normalize(value) : null)
 
-export function createAirlineResolver(airlines) {
+export function createAirlineResolver(airlines, preferredAirlines = []) {
+  const preferredIata = new Set(preferredAirlines.map((airline) => airline.iata).filter(Boolean))
+  const preferredIcao = new Set(preferredAirlines.map((airline) => airline.icao).filter(Boolean))
+  const entries = [
+    ...preferredAirlines,
+    ...airlines.filter(
+      (airline) => !preferredIata.has(airline.iata) && !preferredIcao.has(airline.icao),
+    ),
+  ]
   const byIata = new Map()
   const byIcao = new Map()
-  for (const airline of airlines) {
+  for (const airline of entries) {
     if (airline.iata) byIata.set(airline.iata, [...(byIata.get(airline.iata) || []), airline])
     if (airline.icao) byIcao.set(airline.icao, [...(byIcao.get(airline.icao) || []), airline])
   }
@@ -22,6 +31,7 @@ export function createAirlineResolver(airlines) {
   const display = (airline, source, fallbackIata = null, fallbackIcao = null) => ({
     airlineCode: airline?.iata || fallbackIata,
     airlineName: airline?.name || null,
+    ...(airline?.nameKo ? { airlineNameKo: airline.nameKo } : {}),
     airlineIcao: airline?.icao || fallbackIcao,
     airlineSource: source,
   })
@@ -58,4 +68,17 @@ export function createAirlineResolver(airlines) {
   }
 }
 
-export const resolveAirline = createAirlineResolver(dataset.airlines)
+export const resolveAirline = createAirlineResolver(dataset.airlines, domesticDataset.airlines)
+
+export function formatFlightNumber({ callsign, registration } = {}) {
+  const flight = normalize(callsign)
+  if (registration && flight.replaceAll('-', '') === normalize(registration).replaceAll('-', ''))
+    return flight
+  const match = /^([A-Z]{3}|[A-Z0-9]{2})(\d{1,4})$/.exec(flight)
+  if (!match || !/[A-Z]/.test(match[1])) return flight
+  const prefix =
+    match[1].length === 3
+      ? match[1]
+      : resolveAirline({ callsign: flight, registration }).airlineIcao || match[1]
+  return `${prefix} ${match[2].padStart(4, '0')}`
+}

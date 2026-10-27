@@ -4,7 +4,7 @@
     "url": "https://openflights.org/data.php#airline",
     "dataUrl": "https://raw.githubusercontent.com/jpatokal/openflights/5d623a6969a1adee7961cf1c9a8a212c4a784713/data/airlines.dat",
     "revision": "5d623a6969a1adee7961cf1c9a8a212c4a784713",
-    "retrievedAt": "2026-10-27T05:02:10.265Z",
+    "retrievedAt": "2026-10-27T09:20:01.860Z",
     "sha256": "39be1a432e8b04ebc12860c29281c974a9cb52169c82b2456a835d66ab1548a1",
     "license": "ODbL-1.0",
     "licenseUrl": "https://opendatacommons.org/licenses/odbl/1-0/",

@@ -1,6 +1,7 @@
 const radians = (degrees) => (degrees * Math.PI) / 180
 
 export const SEARCH_RADIUS_KM = 25
+export const POSITION_REFRESH_MS = 5000
 // adsb.lol accepts nautical miles. Round up, then filter to the exact km radius.
 export const SEARCH_RADIUS_NM = Math.ceil(SEARCH_RADIUS_KM / 1.852)
 

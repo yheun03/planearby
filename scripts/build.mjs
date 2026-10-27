@@ -3,8 +3,10 @@ import { createSSRApp } from 'vue'
 import { renderToString } from '@vue/server-renderer'
 import { readFile, writeFile } from 'node:fs/promises'
 
-await build()
+const mode = process.argv.includes('--pages') ? 'pages' : 'production'
+await build({ mode })
 const server = await createServer({
+  mode,
   server: { middlewareMode: true, hmr: false, ws: false },
   optimizeDeps: { noDiscovery: true, include: [] },
   appType: 'custom',

@@ -1,4 +1,4 @@
-import { resolveAirline } from '~/utils/airlines.js'
+import { resolveAirline } from '../../../../utils/airlines.js'
 
 export const previewCenter = { lat: 37.5665, lon: 126.978 }
 
@@ -57,22 +57,3 @@ export const exampleFlights = [
   ...resolveAirline({ callsign: flight.callsign }),
   detailsStatus: 'example',
 }))
-
-export const airports = {
-  ICN: { ko: '인천', en: 'Incheon', ja: '仁川' },
-  GMP: { ko: '김포', en: 'Gimpo', ja: '金浦' },
-  CJU: { ko: '제주', en: 'Jeju', ja: '済州' },
-  PUS: { ko: '부산', en: 'Busan', ja: '釜山' },
-  FUK: { ko: '후쿠오카', en: 'Fukuoka', ja: '福岡' },
-  NRT: { ko: '도쿄 나리타', en: 'Tokyo Narita', ja: '東京 成田' },
-  HND: { ko: '도쿄 하네다', en: 'Tokyo Haneda', ja: '東京 羽田' },
-  KIX: { ko: '오사카 간사이', en: 'Osaka Kansai', ja: '大阪 関西' },
-  TSA: { ko: '타이베이 쑹산', en: 'Taipei Songshan', ja: '台北 松山' },
-  TPE: { ko: '타이베이 타오위안', en: 'Taipei Taoyuan', ja: '台北 桃園' },
-  HKG: { ko: '홍콩', en: 'Hong Kong', ja: '香港' },
-  SIN: { ko: '싱가포르', en: 'Singapore', ja: 'シンガポール' },
-  BKK: { ko: '방콕', en: 'Bangkok', ja: 'バンコク' },
-  LAX: { ko: '로스앤젤레스', en: 'Los Angeles', ja: 'ロサンゼルス' },
-  SFO: { ko: '샌프란시스코', en: 'San Francisco', ja: 'サンフランシスコ' },
-  JFK: { ko: '뉴욕', en: 'New York', ja: 'ニューヨーク' },
-}

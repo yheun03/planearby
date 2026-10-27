@@ -70,21 +70,30 @@ onUnmounted(() => {
     role="img"
     :aria-label="String(text)"
   >
-    <span
+    <template
       v-for="(cell, index) in cells"
       :key="index"
-      class="split-flap__cell"
-      aria-hidden="true"
     >
-      <span class="split-flap__character">{{ cell.value === ' ' ? '\u00a0' : cell.value }}</span>
       <span
-        v-if="cell.moving"
-        :key="cell.frame"
-        class="split-flap__leaf"
+        v-if="target[index] === ' '"
+        class="split-flap__space"
+        aria-hidden="true"
+      />
+      <span
+        v-else
+        class="split-flap__cell"
+        aria-hidden="true"
       >
-        {{ cell.previous }}
+        <span class="split-flap__character">{{ cell.value === ' ' ? '\u00a0' : cell.value }}</span>
+        <span
+          v-if="cell.moving"
+          :key="cell.frame"
+          class="split-flap__leaf"
+        >
+          {{ cell.previous }}
+        </span>
+        <span class="split-flap__seam" />
       </span>
-      <span class="split-flap__seam" />
-    </span>
+    </template>
   </span>
 </template>

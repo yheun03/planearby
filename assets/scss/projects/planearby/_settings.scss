@@ -7,13 +7,11 @@
   max-height: calc(100dvh - 48px);
   padding: 0;
   border: 1px solid var(--border);
-  border-radius: 20px;
+  border-radius: 4px;
   color: var(--text);
   background: var(--surface);
-  box-shadow: 0 20px 100px #0003;
   &::backdrop {
     background: #000b;
-    backdrop-filter: blur(5px);
   }
   &__content {
     padding: 26px 28px 20px;
@@ -28,7 +26,7 @@
     @include flex-center;
     width: 42px;
     height: 42px;
-    border-radius: 11px;
+    border-radius: 3px;
     background: var(--accent-soft);
     color: var(--accent-text);
   }
@@ -98,9 +96,9 @@
     @include flex-center;
     flex-direction: column;
     gap: 9px;
-    min-height: 80px;
+    min-height: 64px;
     border: 1px solid var(--border);
-    border-radius: 9px;
+    border-radius: 3px;
     color: var(--text-secondary);
     font-size: 11px;
     cursor: pointer;
@@ -138,10 +136,10 @@
     position: relative;
     @include flex-center;
     gap: 6px;
-    min-height: 43px;
+    min-height: 44px;
     font-size: 11px;
     border: 1px solid var(--border);
-    border-radius: 7px;
+    border-radius: 3px;
     cursor: pointer;
     > input {
       position: absolute;
@@ -180,14 +178,14 @@
   align-items: center;
   gap: 8px;
   width: 100%;
-  min-height: 43px;
+  min-height: 44px;
   margin-top: 12px;
   padding: 8px 12px;
   color: var(--text-secondary);
   font-size: 11px;
   background: var(--surface-subtle);
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: 3px;
   > svg:last-child {
     margin-left: auto;
   }

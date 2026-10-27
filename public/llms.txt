@@ -1,20 +1,20 @@
 # Planearby
 
-> A personal nearby-aircraft dashboard built with Vue 3. Korean, English, and Japanese interfaces are available.
+> A free Vue 3 nearby-aircraft dashboard with Korean, English and Japanese interfaces.
 
-Planearby starts a scan automatically when the page opens and requests browser location permission when needed. It displays aircraft within a horizontal great-circle distance of the configured radius, excluding altitude (currently 25 km). Each scan ends within 30 seconds and refreshes positions every 7 seconds. Only supported Airbus, Boeing and Bombardier types are displayed; GLEX, helicopters, other manufacturers and unknown types are excluded. The radar plots distance and bearing relative to a manually selected facing direction or an explicitly enabled phone compass. Aircraft noses show reported ground track relative to that facing direction. Phone sensor headings are approximate and may be magnetic rather than true north.
+Planearby starts when the page becomes visible and the user grants browser location permission. It polls aircraft positions every five seconds until stopped or the page is closed, with no thirty-second session limit. Background browser power policies can delay polling. Returning to the page triggers a refresh.
 
-An analog split-flap board shows one selected aircraft. It starts with the closest aircraft and rotates to an unseen aircraft every 10 seconds. Users can select an aircraft on the radar or pause automatic rotation. Reduced-motion preferences disable the flap animation. Flight details are fetched only for selected aircraft and reused within each scan.
+The radar plots aircraft relative to a manually selected facing direction or an explicitly enabled phone compass. Aircraft noses indicate received ground track. The default horizontal search radius is 25 km, configured in utils/geo.js; altitude is excluded. Supported Airbus, Boeing and Bombardier models are shown. GLEX, helicopters, ground aircraft, stale positions and unsupported types are excluded. Empty results do not prove there are no nearby aircraft.
 
-Fictional example flights are available only through an explicitly selected example view. These are not live observations. Empty results do not prove there are no aircraft nearby: type filtering, receiver coverage and data delay affect results.
+An analog split-flap board shows one aircraft and rotates to an unseen aircraft every ten seconds. Track uses three cells and distance four cells. Missing route airports retain NON flap cells. Scheduled-time fields are omitted. Phone and tablet layouts place the radar above the board. Light and dark themes include the board and flap cells. Reduced-motion preferences disable the animation.
 
-Position source: adsb.lol, licensed under ODbL 1.0. Without an API key, adsbdb supplies origin and destination airports as reference routes matched by callsign. They are not verified as today's flight and do not include scheduled times. The interface marks these limitations and does not estimate schedules. Optional AirLabs details require a server-side API key and a verified match to the observed aircraft. If available, scheduled times are local to each departure or arrival airport, not actual or estimated times.
+Data sources: adsb.lol positions under ODbL 1.0, accessed through this app’s fixed-upstream /api/aircraft server function because the source API lacks browser CORS; adsbdb reference routes; the Air Portal directory for operating Korean airlines; and generated OpenFlights airline and aircraft snapshots. The domestic directory takes precedence over missing or historically reused OpenFlights airline codes and supplies Korean names directly. Airline names and IATA/ICAO pairs are matched from generated datasets, not handwritten airline lists. Callsign-derived airline names and routes are inferred and may differ from the actual operation. No paid data API, API key, login or payment information is sent to data providers. No third-party public CORS relay is used.
 
-Exact user coordinates are not written to persistent storage. The server keeps scan coordinates in memory for at most 30 seconds. Theme and language preferences are stored locally in the browser. The interface is for curiosity and is not a navigation or safety tool.
+Approximate coordinates rounded to three decimal places are sent to the app’s server-function host and adsb.lol. Exact browser coordinates are used locally for distance filtering. App code does not store or log coordinates; hosting and provider policies apply to requests. Theme, language and manual facing preferences are stored locally. Cached routes, deduplication and backoff reduce unnecessary calls. A 403 is shown explicitly and retried after five minutes. Free data access does not guarantee unlimited availability; server-function hosting has its own plan limits.
 
-- [adsb.lol API](https://api.adsb.lol/docs)
-- [adsb.lol license](https://www.adsb.lol/docs/open-data/api/)
-- [adsbdb API fields](https://github.com/mrjackwills/adsbdb)
-- [AirLabs flight fields](https://airlabs.co/docs/flight)
+GitHub Pages deployment is available through npm run deploy after VITE_AIRCRAFT_API_URL is configured to point to a separately deployed api/aircraft.js function. GitHub Pages cannot run server functions. Vite development and preview serve the local function automatically; a Vercel Vite deployment can serve the included Node function at /api/aircraft. The app is prerendered to static HTML and has semantic landmarks, keyboard controls, accessible status messages and generated deployment metadata. It is for personal curiosity, not navigation or safety decisions.
 
-Airline identity: verified API airline codes take precedence. If missing, an ICAO or IATA flight-number prefix is matched against a generated OpenFlights airline snapshot. Names and IATA/ICAO pairs are not maintained in a handwritten map. Registration-only and ambiguous codes are not guessed. Callsign-derived names are inferred, not confirmation of the actual operator. OpenFlights data is licensed under ODbL 1.0: https://openflights.org/data.php#airline.
+- [adsb.lol data](https://www.adsb.lol/docs/open-data/api/)
+- [adsbdb](https://github.com/mrjackwills/adsbdb)
+- [OpenFlights](https://openflights.org/data.php)
+- [Air Portal airline directory](https://www.airportal.go.kr/airline/airCompanyInfo.do)

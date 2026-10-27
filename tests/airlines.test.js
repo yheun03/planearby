@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createAirlineResolver, resolveAirline } from '../utils/airlines.js'
+import { createAirlineResolver, formatFlightNumber, resolveAirline } from '../utils/airlines.js'
 
 const airlines = [
   { name: 'Example Alpha', iata: 'ZX', icao: 'XAA' },
@@ -70,4 +70,57 @@ test('the generated external dataset covers the displayed Korean callsigns', () 
   assert.equal(resolveAirline({ callsign: 'AAR102' }).airlineCode, 'OZ')
   assert.equal(resolveAirline({ callsign: 'JJA1301' }).airlineCode, '7C')
   assert.equal(resolveAirline({ callsign: 'TWB281' }).airlineCode, 'TW')
+})
+
+test('the official domestic snapshot resolves new LCCs and reused IATA codes', () => {
+  for (const [icao, iata, nameKo] of [
+    ['PTA', 'WE', '파라타항공'],
+    ['ASV', 'RS', '에어서울'],
+    ['EOK', 'RF', '에어로K'],
+    ['APZ', 'YP', '에어프레미아'],
+  ]) {
+    for (const callsign of [`${icao}123`, `${iata}123`]) {
+      const airline = resolveAirline({ callsign })
+      assert.equal(airline.airlineIcao, icao)
+      assert.equal(airline.airlineCode, iata)
+      assert.equal(airline.airlineNameKo, nameKo)
+      assert.equal(formatFlightNumber({ callsign }), `${icao} 0123`)
+    }
+  }
+})
+
+test('preferred directory identities replace stale codes without guessing an old ICAO operator', () => {
+  const current = createAirlineResolver(
+    [
+      { name: 'Former Operator', iata: 'RS', icao: 'OLD' },
+      { name: 'Reused ICAO Operator', iata: null, icao: 'ASV' },
+    ],
+    [{ name: 'Air Seoul', nameKo: '에어서울', iata: 'RS', icao: 'ASV' }],
+  )
+  assert.equal(current({ callsign: 'RS123' }).airlineName, 'Air Seoul')
+  assert.equal(current({ callsign: 'ASV123' }).airlineNameKo, '에어서울')
+  assert.equal(current({ callsign: 'OLD123' }).airlineName, null)
+})
+
+test('displayed flight numbers use dataset ICAO prefixes and four numeric digits', () => {
+  for (const [callsign, display] of [
+    ['oz123', 'AAR 0123'],
+    [' AAR 123 ', 'AAR 0123'],
+    ['KE7', 'KAL 0007'],
+    ['KAL0007', 'KAL 0007'],
+    ['7C123', 'JJA 0123'],
+    ['JJA9999', 'JJA 9999'],
+    ['ZZ123', 'ZZ 0123'],
+  ])
+    assert.equal(formatFlightNumber({ callsign }), display)
+})
+
+test('display formatting preserves registrations and nonnumeric or oversized callsigns without truncation', () => {
+  for (const callsign of ['KAL12A', 'KAL12345', '12345', 'UNKNOWN'])
+    assert.equal(formatFlightNumber({ callsign }), callsign)
+  assert.equal(formatFlightNumber({ callsign: 'AAR123', registration: 'AAR-123' }), 'AAR123')
+  assert.equal(formatFlightNumber(), '')
+  const flight = { callsign: 'OZ123' }
+  assert.equal(formatFlightNumber(flight), 'AAR 0123')
+  assert.equal(flight.callsign, 'OZ123', 'API queries must retain the original callsign')
 })

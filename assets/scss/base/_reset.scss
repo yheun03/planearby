@@ -5,7 +5,7 @@
 }
 body {
   margin: 0;
-  min-width: 360px;
+  min-width: 320px;
   background: var(--page);
   color: var(--text);
 }
@@ -77,8 +77,10 @@ svg {
   border-radius: 0 0 5px 5px;
   color: var(--page);
   background: var(--accent);
+  clip-path: inset(50%);
   &:focus {
     top: 0;
+    clip-path: none;
   }
 }
 .icon-button {

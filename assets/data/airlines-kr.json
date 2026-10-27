@@ -1,0 +1,99 @@
+{
+  "source": {
+    "name": "항공정보포털",
+    "url": "https://www.airportal.go.kr/airline/airCompanyInfo.do",
+    "apiUrl": "https://www.airportal.go.kr/airline/searchAirline.do",
+    "query": {
+      "pageNumber": 1,
+      "pageSize": 100,
+      "isActive": true,
+      "order": "asc",
+      "orderNm": "name",
+      "searchName": "Republic of Korea"
+    },
+    "retrievedAt": "2026-10-27T09:20:01.988Z",
+    "sha256": "f2ce28992e584a06f9af3f0a30a42980678839179be4f4af2ba89030cdae230e",
+    "filter": "Operating airlines in Republic of Korea; factual names and valid IATA/ICAO identifiers only",
+    "attribution": "항공정보포털 · 국토교통부 / 한국항공협회. Original website terms apply; no license is asserted for the original directory."
+  },
+  "airlines": [
+    {
+      "name": "Korean Air",
+      "nameKo": "대한항공",
+      "iata": "KE",
+      "icao": "KAL"
+    },
+    {
+      "name": "Asiana Airlines",
+      "nameKo": "아시아나항공",
+      "iata": "OZ",
+      "icao": "AAR"
+    },
+    {
+      "name": "JEJU air",
+      "nameKo": "제주항공",
+      "iata": "7C",
+      "icao": "JJA"
+    },
+    {
+      "name": "Jin Air",
+      "nameKo": "진에어",
+      "iata": "LJ",
+      "icao": "JNA"
+    },
+    {
+      "name": "Air Busan",
+      "nameKo": "에어부산",
+      "iata": "BX",
+      "icao": "ABL"
+    },
+    {
+      "name": "Eastar Jet",
+      "nameKo": "이스타항공",
+      "iata": "ZE",
+      "icao": "ESR"
+    },
+    {
+      "name": "Trinity Airways",
+      "nameKo": "트리니티항공",
+      "iata": "TW",
+      "icao": "TWB"
+    },
+    {
+      "name": "Air Seoul",
+      "nameKo": "에어서울",
+      "iata": "RS",
+      "icao": "ASV"
+    },
+    {
+      "name": "Air Premia",
+      "nameKo": "에어프레미아",
+      "iata": "YP",
+      "icao": "APZ"
+    },
+    {
+      "name": "Aero K",
+      "nameKo": "에어로K",
+      "iata": "RF",
+      "icao": "EOK"
+    },
+    {
+      "name": "PARATA AIR",
+      "nameKo": "파라타항공",
+      "iata": "WE",
+      "icao": "PTA"
+    },
+    {
+      "name": "AirZeta",
+      "nameKo": "에어제타",
+      "iata": "KJ",
+      "icao": "AIH"
+    },
+    {
+      "name": "SUM AIR",
+      "nameKo": "섬에어",
+      "iata": "XU",
+      "icao": "XUM"
+    }
+  ]
+}
