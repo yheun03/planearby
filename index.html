@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0"
+    />
+    <meta
+      name="theme-color"
+      content="#060606"
+    />
+    <meta
+      name="description"
+      content="지금 내 곁을 날아가는 비행기는 어디로 갈까요? Planearby에서 현재 위치 반경 50km의 항공편과 비행 방향을 30초 동안 살펴보세요."
+    />
+    <meta
+      name="robots"
+      content="index, follow"
+    />
+    <meta
+      property="og:type"
+      content="website"
+    />
+    <meta
+      property="og:site_name"
+      content="Planearby"
+    />
+    <meta
+      property="og:locale"
+      content="ko_KR"
+    />
+    <meta
+      property="og:title"
+      content="Planearby — 지금 내 곁을 날아가는 비행기"
+    />
+    <meta
+      property="og:description"
+      content="내 위치를 중심으로 반경 50km, 30초의 작은 하늘 관측. 항공편 보드와 방향 레이더로 만나는 우리 동네 하늘."
+    />
+    <meta
+      property="og:image"
+      content="/social-card.svg"
+    />
+    <meta
+      name="twitter:card"
+      content="summary_large_image"
+    />
+    <meta
+      name="color-scheme"
+      content="dark light"
+    />
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="/favicon.svg"
+    />
+    <link
+      rel="preconnect"
+      href="https://fonts.googleapis.com"
+    />
+    <link
+      rel="preconnect"
+      href="https://fonts.gstatic.com"
+      crossorigin
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;450;500;550;600;650;700;750;800&family=IBM+Plex+Mono:wght@400;450;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <title>Planearby — 지금 내 곁을 날아가는 비행기</title>
+    <script
+      type="application/ld+json"
+      id="app-schema"
+    >
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Planearby",
+        "description": "사용자가 동의한 현재 위치를 기준으로 수평 거리 50km 이내의 항공기와 비행 방향을 최대 30초 동안 조회하는 서비스입니다.",
+        "applicationCategory": "TravelApplication",
+        "operatingSystem": "Any",
+        "inLanguage": ["ko", "en", "ja"],
+        "isAccessibleForFree": true,
+        "browserRequirements": "JavaScript and geolocation permission; HTTPS or localhost"
+      }
+    </script>
+  </head>
+  <body>
+    <div id="app"><!--app-html--></div>
+    <noscript>
+      Planearby는 현재 위치 주변의 항공기를 조회하는 서비스입니다. 항공편 보드와 레이더를 사용하려면
+      JavaScript를 활성화해 주세요. 위치는 동의 후 조회에만 사용하며 별도로 저장하지 않습니다.
+    </noscript>
+    <script
+      type="module"
+      src="/src/main.js"
+    ></script>
+  </body>
+</html>

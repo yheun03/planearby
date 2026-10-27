@@ -1,0 +1,17 @@
+# Planearby
+
+> A personal nearby-aircraft dashboard built with Vue 3. Korean, English, and Japanese interfaces are available.
+
+Planearby requests browser location only after the user starts a scan. It displays aircraft within a horizontal great-circle distance of 50 km, excluding altitude. Each scan ends within 30 seconds and refreshes positions every 7 seconds. The radar plots distance and bearing relative to a manually selected facing direction or an explicitly enabled phone compass. Aircraft noses show reported ground track relative to that facing direction. Phone sensor headings are approximate and may be magnetic rather than true north.
+
+An analog split-flap board shows one selected aircraft. It starts with the closest aircraft and rotates to an unseen aircraft every 10 seconds. Users can select an aircraft on the radar or pause automatic rotation. Reduced-motion preferences disable the flap animation. Flight details are fetched only for selected aircraft and reused within each scan.
+
+The initial dashboard contains clearly marked fictional example flights. These are not live observations. Empty results do not prove there are no aircraft nearby: receiver coverage and data delay affect results.
+
+Position source: adsb.lol, licensed under ODbL 1.0. Optional flight details: AirLabs. Details require a server-side API key and a verified match to the observed aircraft. Scheduled times are local to each departure or arrival airport, not actual or estimated times. Missing fields are identified in the interface.
+
+Exact user coordinates are not written to persistent storage. The server keeps scan coordinates in memory for at most 30 seconds. Theme and language preferences are stored locally in the browser. The interface is for curiosity and is not a navigation or safety tool.
+
+- [adsb.lol API](https://api.adsb.lol/docs)
+- [adsb.lol license](https://www.adsb.lol/docs/open-data/api/)
+- [AirLabs flight fields](https://airlabs.co/docs/flight)
