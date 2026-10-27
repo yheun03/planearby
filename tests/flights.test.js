@@ -1,5 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { readFile, writeFile, mkdir, rm } from 'node:fs/promises'
+import { transformWithEsbuild } from 'vite'
 import { createFlightClient } from '../utils/flights.js'
 import { SEARCH_RADIUS_KM } from '../utils/geo.js'
 
@@ -19,6 +21,43 @@ const route = {
   destination: { iata_code: 'FUK', name: 'Fukuoka' },
 }
 const positions = (ac, now = Date.now()) => Response.json({ ac, now })
+
+test('development uses its local relay even with a deployed API URL in the environment', async () => {
+  const source = await readFile(new URL('../utils/flights.js', import.meta.url), 'utf8')
+  await mkdir(new URL('../.data/', import.meta.url), { recursive: true })
+  for (const development of [true, false]) {
+    const file = new URL(`../.data/flights-env-${development}.mjs`, import.meta.url)
+    const { code } = await transformWithEsbuild(source, 'flights.js', {
+      define: {
+        'import.meta.env': JSON.stringify({
+          DEV: development,
+          VITE_AIRCRAFT_API_URL: 'https://example.com/api/aircraft',
+        }),
+      },
+    })
+    await writeFile(
+      file,
+      code.replaceAll("from './", "from '../utils/").replaceAll('from "./', 'from "../utils/'),
+    )
+    try {
+      const { createFlightClient: createConfiguredClient } = await import(file.href)
+      let requested
+      const client = createConfiguredClient({
+        fetchImpl: async (url) => {
+          requested = url
+          return positions([aircraft])
+        },
+      })
+      assert.equal((await client.nearby(center)).length, 1)
+      assert.equal(
+        requested,
+        `${development ? '' : 'https://example.com'}/api/aircraft?lat=37.566&lon=126.978`,
+      )
+    } finally {
+      await rm(file, { force: true })
+    }
+  }
+})
 
 test('positions use the app API without credentials and filter unsupported or invalid observations', async () => {
   const calls = []

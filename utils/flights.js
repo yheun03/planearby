@@ -12,7 +12,9 @@ const finite = (value) => typeof value === 'number' && Number.isFinite(value)
 export function createFlightClient({
   fetchImpl = fetch,
   now = Date.now,
-  positionEndpoint = import.meta.env?.VITE_AIRCRAFT_API_URL || '/api/aircraft',
+  positionEndpoint = import.meta.env?.DEV
+    ? '/api/aircraft'
+    : import.meta.env?.VITE_AIRCRAFT_API_URL || '/api/aircraft',
 } = {}) {
   const routes = new Map()
   const pendingRoutes = new Map()
