@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://yheun03.github.io/planearby/sitemap.xml

@@ -1,0 +1,20 @@
+# Planearby
+
+> A free Vue 3 nearby-aircraft dashboard with Korean, English and Japanese interfaces.
+
+Planearby starts when the page becomes visible and the user grants browser location permission. It polls aircraft positions every five seconds until stopped or the page is closed, with no thirty-second session limit. Background browser power policies can delay polling. Returning to the page triggers a refresh.
+
+The radar plots aircraft relative to a manually selected facing direction or an explicitly enabled phone compass. Aircraft noses indicate received ground track. The default horizontal search radius is 25 km, configured in utils/geo.js; altitude is excluded. Supported Airbus, Boeing and Bombardier models are shown. GLEX, helicopters, ground aircraft, stale positions and unsupported types are excluded. Empty results do not prove there are no nearby aircraft.
+
+An analog split-flap board shows one aircraft and rotates to an unseen aircraft every ten seconds. Track uses three cells and distance four cells. Missing route airports retain NON flap cells. Scheduled-time fields are omitted. Phone and tablet layouts place the radar above the board. Light and dark themes include the board and flap cells. Reduced-motion preferences disable the animation.
+
+Data sources: adsb.lol positions under ODbL 1.0, accessed through the anonymous Jina Reader relay because the source API lacks browser CORS; adsbdb reference routes; and generated OpenFlights airline and aircraft snapshots. Airline names and IATA/ICAO pairs are matched from the dataset, not handwritten airline lists. Callsign-derived airline names and routes are inferred and may differ from the actual operation. No paid API, API key, login or payment information is used.
+
+Approximate coordinates rounded to three decimal places are sent to Jina Reader and adsb.lol. Exact browser coordinates are used locally for distance filtering. Coordinates are not stored by this app; provider policies apply to transmitted requests. Theme, language and manual facing preferences are stored locally. Jina's anonymous service has an IP-based rate limit; cached routes, deduplication and backoff reduce unnecessary calls. Free access does not guarantee unlimited availability.
+
+GitHub Pages deployment is available through npm run deploy. The app is prerendered to static HTML and has semantic landmarks, keyboard controls, accessible status messages and generated deployment metadata. It is for personal curiosity, not navigation or safety decisions.
+
+- [adsb.lol data](https://www.adsb.lol/docs/open-data/api/)
+- [Jina Reader](https://jina.ai/reader/)
+- [adsbdb](https://github.com/mrjackwills/adsbdb)
+- [OpenFlights](https://openflights.org/data.php)
