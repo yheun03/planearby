@@ -22,28 +22,39 @@ const positionResponse = {
       seen_pos: 1,
       alt_baro: 12000,
     },
-    { hex: 'midrange', flight: 'MID12', lat: 37.59, lon: 126.978 },
+    { hex: 'midrange', flight: 'MID12', t: 'A321', lat: 37.59, lon: 126.978 },
     {
       hex: 'edge-inside',
+      t: 'CRJ9',
       flight: 'EDGE12',
       lat: 37.5665 + (SEARCH_RADIUS_KM - 0.01) / 111.1950802335329,
       lon: 126.978,
     },
     {
       hex: 'edge-outside',
+      t: 'B738',
       flight: 'EDGE13',
       lat: 37.5665 + (SEARCH_RADIUS_KM + 0.01) / 111.1950802335329,
       lon: 126.978,
     },
     {
       hex: 'outside',
+      t: 'A320',
       flight: 'OUT12',
       lat: 37.5665 + (SEARCH_RADIUS_KM + 2) / 111.1950802335329,
       lon: 126.978,
     },
-    { hex: 'stale', flight: 'OLD12', lat: 37.567, lon: 126.978, seen_pos: 50 },
-    { hex: 'ground', flight: 'GND12', lat: 37.567, lon: 126.978, alt_baro: 'ground' },
-    { hex: 'invalid', lat: null, lon: 126.978 },
+    { hex: 'stale', flight: 'OLD12', t: 'B738', lat: 37.567, lon: 126.978, seen_pos: 50 },
+    { hex: 'ground', flight: 'GND12', t: 'A320', lat: 37.567, lon: 126.978, alt_baro: 'ground' },
+    { hex: 'invalid', t: 'B738', lat: null, lon: 126.978 },
+    ...['GLEX', 'H160', 'B06', 'E190', 'AT76', null].map((t) => ({
+      hex: `excluded-${t}`,
+      flight: 'OTHER12',
+      t,
+      lat: 37.567,
+      lon: 126.978,
+    })),
+    { hex: 'rotorcraft', flight: 'HELI12', t: 'A320', category: 'A7', lat: 37.567, lon: 126.978 },
   ],
 }
 const detailResponse = {
@@ -60,6 +71,16 @@ const detailResponse = {
   arr_iata: 'FUK',
   dep_time: '2026-10-27 12:00',
   arr_time: '2026-10-27 14:00',
+  dep_estimated: '2026-10-27 12:30',
+  arr_estimated: '2026-10-27 14:30',
+  dep_actual: '2026-10-27 12:40',
+  arr_actual: '2026-10-27 14:40',
+}
+const routeResponse = {
+  callsign: 'KAL1428',
+  callsign_icao: 'KAL1428',
+  origin: { iata_code: 'ICN', icao_code: 'RKSI', name: 'Incheon International Airport' },
+  destination: { iata_code: 'FUK', icao_code: 'RJFF', name: 'Fukuoka Airport' },
 }
 
 async function fixture(options = {}) {
@@ -73,7 +94,11 @@ async function fixture(options = {}) {
       calls.push(String(url))
       requestHeaders.push(options.headers)
       return Response.json(
-        String(url).includes('adsb.lol') ? positionResponse : { response: detailResponse },
+        String(url).includes('adsb.lol')
+          ? positionResponse
+          : String(url).includes('adsbdb.com')
+            ? { response: { flightroute: routeResponse } }
+            : { response: detailResponse },
       )
     })
   const server = createServer(
@@ -166,7 +191,7 @@ test('nearby data includes aircraft within the configured radius and excludes fa
     assert.equal(body.aircraft[0].airlineCode, 'KE')
     assert.equal(body.aircraft[0].airlineName, 'Korean Air')
     assert.equal(body.aircraft[0].airlineSource, 'callsign')
-    assert.equal(body.detailsAvailable, false)
+    assert.equal(body.detailsAvailable, true)
     assert.equal(response.headers.get('cache-control'), 'no-store')
     await f.request(`/nearby?session=${id}`)
     assert.equal(f.calls.length, 1, 'rapid repeat polls reuse the server cache')
@@ -203,16 +228,91 @@ test('unknown callsigns cannot consume the flight-detail allowance', async () =>
   }
 })
 
-test('an absent server key leaves positions available without making an AirLabs request', async () => {
+test('without a key, callsign routes are fetched for free and never invented as verified schedules', async () => {
   const f = await fixture()
   try {
     const { id } = await f.start()
     await f.request(`/nearby?session=${id}`)
-    const body = await (await f.request(`/flight?session=${id}&callsign=KAL1428`)).json()
-    assert.equal(body.detailsStatus, 'unavailable')
-    assert.equal(f.calls.length, 1)
+    const responses = await Promise.all([
+      f.request(`/flight?session=${id}&callsign=KAL1428`),
+      f.request(`/flight?session=${id}&callsign=KAL1428`),
+    ])
+    const body = await responses[0].json()
+    assert.deepEqual(await responses[1].json(), body)
+    assert.equal(body.detailsStatus, 'route')
+    assert.equal(body.dep, 'ICN')
+    assert.equal(body.arr, 'FUK')
+    assert.equal(body.depName, 'Incheon International Airport')
+    assert.equal(body.depTime, null)
+    assert.equal(body.arrTime, null)
+    assert.ok(f.calls[1].startsWith('https://api.adsbdb.com/v0/callsign/KAL1428'))
+    assert.equal(
+      f.calls.some((url) => url.includes('airlabs.co')),
+      false,
+    )
+    await f.request(`/flight?session=${id}&callsign=KAL1428`)
+    assert.equal(f.calls.length, 2)
   } finally {
     await f.close()
+  }
+})
+
+test('free route lookups are capped per session independently of paid request budgets', async () => {
+  let routeRequests = 0
+  const f = await fixture({
+    fetchImpl: async (url) => {
+      if (String(url).includes('adsb.lol'))
+        return Response.json({
+          ac: Array.from({ length: 15 }, (_, i) => ({
+            hex: `aircraft${i}`,
+            flight: `KAL${1000 + i}`,
+            t: 'B738',
+            lat: 37.5675,
+            lon: 126.978,
+          })),
+        })
+      routeRequests += 1
+      return new Response(null, { status: 404 })
+    },
+  })
+  try {
+    const { id, schedulesAvailable } = await f.start()
+    assert.equal(schedulesAvailable, false)
+    await f.request(`/nearby?session=${id}`)
+    for (let i = 0; i < 15; i += 1) await f.request(`/flight?session=${id}&callsign=KAL${1000 + i}`)
+    assert.equal(routeRequests, 12)
+    assert.throws(() => readFileSync(f.budgetFile), { code: 'ENOENT' })
+  } finally {
+    await f.close()
+  }
+})
+
+test('unknown, mismatched and failed free routes leave the aircraft positions available', async () => {
+  for (const routeResult of [
+    () => new Response(null, { status: 404 }),
+    () => new Response(null, { status: 503 }),
+    () =>
+      Response.json({
+        response: {
+          flightroute: { ...routeResponse, callsign: 'KAL999', callsign_icao: 'KAL999' },
+        },
+      }),
+  ]) {
+    const f = await fixture({
+      fetchImpl: async (url) =>
+        String(url).includes('adsb.lol') ? Response.json(positionResponse) : routeResult(),
+    })
+    try {
+      const { id } = await f.start()
+      await f.request(`/nearby?session=${id}`)
+      assert.deepEqual(await (await f.request(`/flight?session=${id}&callsign=KAL1428`)).json(), {
+        detailsStatus: 'unavailable',
+      })
+      const nearby = await (await f.request(`/nearby?session=${id}`)).json()
+      assert.equal(nearby.aircraft.length, 3)
+    } finally {
+      await f.close()
+    }
   }
 })
 

@@ -24,11 +24,11 @@ import PlanearbySplitFlap from '~/components/projects/planearby/PlanearbySplitFl
 import { I18N_MESSAGES as messages } from '~/i18n/index.js'
 import { projectConfig } from '~/project.config.js'
 import {
-  aircraftModels,
   airports,
   exampleFlights,
   previewCenter,
 } from '~/assets/data/projects/planearby/flights.js'
+import { aircraftModels, isSupportedAircraft } from '~/utils/aircraft.js'
 import {
   bearingDegrees,
   compassHeading,
@@ -43,9 +43,9 @@ const theme = ref('dark')
 const systemDark = ref(false)
 const settingsDialog = ref(null)
 const state = ref('idle')
-const source = ref('preview')
-const flights = ref(exampleFlights.map((flight) => ({ ...flight })))
-const selectedId = ref(exampleFlights[0].id)
+const source = ref('live')
+const flights = ref([])
+const selectedId = ref(null)
 const selectionVersion = ref(0)
 const rotationPaused = ref(false)
 const manualHeading = ref(0)
@@ -57,7 +57,7 @@ const isTouchDevice = ref(false)
 const clockNow = ref(null)
 const detailsAvailable = ref(false)
 const detailRequests = new Map()
-const seenFlightIds = new Set([exampleFlights[0].id])
+const seenFlightIds = new Set()
 let rotationTimer
 let clockTimer
 let compassTimer
@@ -102,7 +102,7 @@ const aircraft = computed(() => {
       distance: center.value ? distanceKm(center.value, flight) : 0,
       bearing: center.value ? bearingDegrees(center.value, flight) : 0,
     }))
-    .filter((flight) => flight.distance <= SEARCH_RADIUS_KM)
+    .filter((flight) => isSupportedAircraft(flight) && flight.distance <= SEARCH_RADIUS_KM)
   return result.sort((a, b) => a.distance - b.distance)
 })
 const selectedFlight = computed(
@@ -211,7 +211,7 @@ const emptyText = computed(() =>
 )
 
 const airlineName = (flight) => flight.airlineName || flight.airlineCode || t('missing')
-const airportName = (code) => airports[code]?.[language.value] || code || t('missing')
+const airportName = (code, name) => airports[code]?.[language.value] || name || code || t('missing')
 const modelName = (type) => aircraftModels[type] || type || t('missing')
 const flightName = (flight) => flight.callsign || flight.id.toUpperCase()
 const formattedTrack = (track) => (Number.isFinite(track) ? `${Math.round(track) % 360}°` : '—')
@@ -509,7 +509,7 @@ async function startScan() {
     })
     if (generation !== currentGeneration) return
     sessionId = response.id
-    if (!response.detailsAvailable) detailNotice.value = 'noKey'
+    if (!response.schedulesAvailable) detailNotice.value = 'noScheduleSource'
     state.value = 'tracking'
     await refreshFlights(currentGeneration)
   } catch (error) {
@@ -622,6 +622,7 @@ onMounted(async () => {
   resetRotationTimer()
   document.addEventListener('visibilitychange', handleVisibility)
   window.addEventListener('pagehide', stopWhenAway)
+  void startScan()
   if (navigator.permissions) {
     try {
       permissionStatus = await navigator.permissions.query({ name: 'geolocation' })
@@ -826,7 +827,7 @@ onUnmounted(() => {
               >
                 {{ t('missing') }}
               </span>
-              <p>{{ airportName(selectedFlight.dep) }}</p>
+              <p>{{ airportName(selectedFlight.dep, selectedFlight.depName) }}</p>
               <div class="board-route__time">
                 <span>{{ t('scheduled') }}</span>
                 <PlanearbySplitFlap
@@ -868,7 +869,7 @@ onUnmounted(() => {
               >
                 {{ t('missing') }}
               </span>
-              <p>{{ airportName(selectedFlight.arr) }}</p>
+              <p>{{ airportName(selectedFlight.arr, selectedFlight.arrName) }}</p>
               <div class="board-route__time">
                 <span>{{ t('scheduled') }}</span>
                 <PlanearbySplitFlap
@@ -945,11 +946,13 @@ onUnmounted(() => {
           </p>
           <p class="flight-board__note">
             {{
-              selectedFlight.detailsStatus === 'unverified'
-                ? t('unverified')
-                : selectedFlight.detailsStatus === 'loading'
-                  ? t('loadingDetails')
-                  : t('localAirportTime')
+              selectedFlight.detailsStatus === 'route'
+                ? t('referenceRoute')
+                : selectedFlight.detailsStatus === 'unverified'
+                  ? t('unverified')
+                  : selectedFlight.detailsStatus === 'loading'
+                    ? t('loadingDetails')
+                    : t('localAirportTime')
             }}
           </p>
         </div>
@@ -1138,6 +1141,14 @@ onUnmounted(() => {
         rel="noopener noreferrer"
       >
         ODbL 1.0
+      </a>
+      <span>·</span>
+      <a
+        href="https://www.adsbdb.com/"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        adsbdb
       </a>
       <span>·</span>
       <a

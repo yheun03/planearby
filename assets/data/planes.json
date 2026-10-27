@@ -1,0 +1,395 @@
+{
+  "source": {
+    "name": "OpenFlights",
+    "url": "https://openflights.org/data.php#plane",
+    "dataUrl": "https://raw.githubusercontent.com/jpatokal/openflights/48478874649ebe1d92887ae52fefda2e3d331e32/data/planes.dat",
+    "revision": "48478874649ebe1d92887ae52fefda2e3d331e32",
+    "retrievedAt": "2026-10-27T06:33:46.266Z",
+    "sha256": "04ba419335a6ff1fd0e0383d0454ff5162b9e39fc76c0a02271b5fc57483d3ce",
+    "license": "ODbL-1.0",
+    "licenseUrl": "https://opendatacommons.org/licenses/odbl/1-0/",
+    "filter": "Airbus, Boeing and Bombardier families including legacy Canadair CRJ/Challenger and Dash 8; valid ICAO code; GLEX excluded"
+  },
+  "planes": [
+    {
+      "icao": "A30B",
+      "name": "Airbus A300",
+      "manufacturer": "Airbus"
+    },
+    {
+      "icao": "A306",
+      "name": "Airbus A300-600",
+      "manufacturer": "Airbus"
+    },
+    {
+      "icao": "A3ST",
+      "name": "Airbus A300-600ST Super Transporter / Beluga",
+      "manufacturer": "Airbus"
+    },
+    {
+      "icao": "A310",
+      "name": "Airbus A310",
+      "manufacturer": "Airbus"
+    },
+    {
+      "icao": "A318",
+      "name": "Airbus A318",
+      "manufacturer": "Airbus"
+    },
+    {
+      "icao": "A319",
+      "name": "Airbus A319",
+      "manufacturer": "Airbus"
+    },
+    {
+      "icao": "A19N",
+      "name": "Airbus A319neo",
+      "manufacturer": "Airbus"
+    },
+    {
+      "icao": "A320",
+      "name": "Airbus A320",
+      "manufacturer": "Airbus"
+    },
+    {
+      "icao": "A20N",
+      "name": "Airbus A320neo",
+      "manufacturer": "Airbus"
+    },
+    {
+      "icao": "A321",
+      "name": "Airbus A321",
+      "manufacturer": "Airbus"
+    },
+    {
+      "icao": "A21N",
+      "name": "Airbus A321neo",
+      "manufacturer": "Airbus"
+    },
+    {
+      "icao": "A332",
+      "name": "Airbus A330-200",
+      "manufacturer": "Airbus"
+    },
+    {
+      "icao": "A333",
+      "name": "Airbus A330-300",
+      "manufacturer": "Airbus"
+    },
+    {
+      "icao": "A337",
+      "name": "Airbus A330-700 Beluga XL",
+      "manufacturer": "Airbus"
+    },
+    {
+      "icao": "A338",
+      "name": "Airbus A330-800neo",
+      "manufacturer": "Airbus"
+    },
+    {
+      "icao": "A339",
+      "name": "Airbus A330-900neo",
+      "manufacturer": "Airbus"
+    },
+    {
+      "icao": "A342",
+      "name": "Airbus A340-200",
+      "manufacturer": "Airbus"
+    },
+    {
+      "icao": "A343",
+      "name": "Airbus A340-300",
+      "manufacturer": "Airbus"
+    },
+    {
+      "icao": "A345",
+      "name": "Airbus A340-500",
+      "manufacturer": "Airbus"
+    },
+    {
+      "icao": "A346",
+      "name": "Airbus A340-600",
+      "manufacturer": "Airbus"
+    },
+    {
+      "icao": "A35K",
+      "name": "Airbus A350-1000",
+      "manufacturer": "Airbus"
+    },
+    {
+      "icao": "A359",
+      "name": "Airbus A350-900",
+      "manufacturer": "Airbus"
+    },
+    {
+      "icao": "A388",
+      "name": "Airbus A380-800",
+      "manufacturer": "Airbus"
+    },
+    {
+      "icao": "B703",
+      "name": "Boeing 707",
+      "manufacturer": "Boeing"
+    },
+    {
+      "icao": "B712",
+      "name": "Boeing 717",
+      "manufacturer": "Boeing"
+    },
+    {
+      "icao": "B720",
+      "name": "Boeing 720B",
+      "manufacturer": "Boeing"
+    },
+    {
+      "icao": "B721",
+      "name": "Boeing 727-100",
+      "manufacturer": "Boeing"
+    },
+    {
+      "icao": "B722",
+      "name": "Boeing 727-200",
+      "manufacturer": "Boeing"
+    },
+    {
+      "icao": "B37M",
+      "name": "Boeing 737 MAX 7",
+      "manufacturer": "Boeing"
+    },
+    {
+      "icao": "B38M",
+      "name": "Boeing 737 MAX 8",
+      "manufacturer": "Boeing"
+    },
+    {
+      "icao": "B39M",
+      "name": "Boeing 737 MAX 9",
+      "manufacturer": "Boeing"
+    },
+    {
+      "icao": "B732",
+      "name": "Boeing 737-200",
+      "manufacturer": "Boeing"
+    },
+    {
+      "icao": "B733",
+      "name": "Boeing 737-300",
+      "manufacturer": "Boeing"
+    },
+    {
+      "icao": "B734",
+      "name": "Boeing 737-400",
+      "manufacturer": "Boeing"
+    },
+    {
+      "icao": "B735",
+      "name": "Boeing 737-500",
+      "manufacturer": "Boeing"
+    },
+    {
+      "icao": "B736",
+      "name": "Boeing 737-600",
+      "manufacturer": "Boeing"
+    },
+    {
+      "icao": "B737",
+      "name": "Boeing 737-700",
+      "manufacturer": "Boeing"
+    },
+    {
+      "icao": "B738",
+      "name": "Boeing 737-800",
+      "manufacturer": "Boeing"
+    },
+    {
+      "icao": "B739",
+      "name": "Boeing 737-900",
+      "manufacturer": "Boeing"
+    },
+    {
+      "icao": "BLCF",
+      "name": "Boeing 747 LCF Dreamlifter",
+      "manufacturer": "Boeing"
+    },
+    {
+      "icao": "B741",
+      "name": "Boeing 747-100",
+      "manufacturer": "Boeing"
+    },
+    {
+      "icao": "B742",
+      "name": "Boeing 747-200",
+      "manufacturer": "Boeing"
+    },
+    {
+      "icao": "B743",
+      "name": "Boeing 747-300",
+      "manufacturer": "Boeing"
+    },
+    {
+      "icao": "B744",
+      "name": "Boeing 747-400",
+      "manufacturer": "Boeing"
+    },
+    {
+      "icao": "B74D",
+      "name": "Boeing 747-400D",
+      "manufacturer": "Boeing"
+    },
+    {
+      "icao": "B748",
+      "name": "Boeing 747-8",
+      "manufacturer": "Boeing"
+    },
+    {
+      "icao": "B74S",
+      "name": "Boeing 747SP",
+      "manufacturer": "Boeing"
+    },
+    {
+      "icao": "B74R",
+      "name": "Boeing 747SR",
+      "manufacturer": "Boeing"
+    },
+    {
+      "icao": "B752",
+      "name": "Boeing 757-200",
+      "manufacturer": "Boeing"
+    },
+    {
+      "icao": "B753",
+      "name": "Boeing 757-300",
+      "manufacturer": "Boeing"
+    },
+    {
+      "icao": "B762",
+      "name": "Boeing 767-200",
+      "manufacturer": "Boeing"
+    },
+    {
+      "icao": "B763",
+      "name": "Boeing 767-300",
+      "manufacturer": "Boeing"
+    },
+    {
+      "icao": "B764",
+      "name": "Boeing 767-400",
+      "manufacturer": "Boeing"
+    },
+    {
+      "icao": "B772",
+      "name": "Boeing 777-200",
+      "manufacturer": "Boeing"
+    },
+    {
+      "icao": "B77L",
+      "name": "Boeing 777-200LR",
+      "manufacturer": "Boeing"
+    },
+    {
+      "icao": "B773",
+      "name": "Boeing 777-300",
+      "manufacturer": "Boeing"
+    },
+    {
+      "icao": "B77W",
+      "name": "Boeing 777-300ER",
+      "manufacturer": "Boeing"
+    },
+    {
+      "icao": "B778",
+      "name": "Boeing 777-8",
+      "manufacturer": "Boeing"
+    },
+    {
+      "icao": "B779",
+      "name": "Boeing 777-9",
+      "manufacturer": "Boeing"
+    },
+    {
+      "icao": "B78X",
+      "name": "Boeing 787-10",
+      "manufacturer": "Boeing"
+    },
+    {
+      "icao": "B788",
+      "name": "Boeing 787-8",
+      "manufacturer": "Boeing"
+    },
+    {
+      "icao": "B789",
+      "name": "Boeing 787-9",
+      "manufacturer": "Boeing"
+    },
+    {
+      "icao": "CL2T",
+      "name": "Bombardier 415",
+      "manufacturer": "Bombardier"
+    },
+    {
+      "icao": "CL30",
+      "name": "Bombardier BD-100 Challenger 300",
+      "manufacturer": "Bombardier"
+    },
+    {
+      "icao": "BCS1",
+      "name": "Bombardier CS100",
+      "manufacturer": "Bombardier"
+    },
+    {
+      "icao": "BCS3",
+      "name": "Bombardier CS300",
+      "manufacturer": "Bombardier"
+    },
+    {
+      "icao": "CL60",
+      "name": "Canadair Challenger",
+      "manufacturer": "Bombardier"
+    },
+    {
+      "icao": "CRJ1",
+      "name": "Canadair Regional Jet 100",
+      "manufacturer": "Bombardier"
+    },
+    {
+      "icao": "CRJX",
+      "name": "Canadair Regional Jet 1000",
+      "manufacturer": "Bombardier"
+    },
+    {
+      "icao": "CRJ2",
+      "name": "Canadair Regional Jet 200",
+      "manufacturer": "Bombardier"
+    },
+    {
+      "icao": "CRJ7",
+      "name": "Canadair Regional Jet 700",
+      "manufacturer": "Bombardier"
+    },
+    {
+      "icao": "CRJ9",
+      "name": "Canadair Regional Jet 900",
+      "manufacturer": "Bombardier"
+    },
+    {
+      "icao": "DH8A",
+      "name": "De Havilland Canada DHC-8-100 Dash 8 / 8Q",
+      "manufacturer": "Bombardier"
+    },
+    {
+      "icao": "DH8B",
+      "name": "De Havilland Canada DHC-8-200 Dash 8 / 8Q",
+      "manufacturer": "Bombardier"
+    },
+    {
+      "icao": "DH8C",
+      "name": "De Havilland Canada DHC-8-300 Dash 8",
+      "manufacturer": "Bombardier"
+    },
+    {
+      "icao": "DH8D",
+      "name": "De Havilland Canada DHC-8-400 Dash 8Q",
+      "manufacturer": "Bombardier"
+    }
+  ]
+}

@@ -76,20 +76,3 @@ export const airports = {
   SFO: { ko: '샌프란시스코', en: 'San Francisco', ja: 'サンフランシスコ' },
   JFK: { ko: '뉴욕', en: 'New York', ja: 'ニューヨーク' },
 }
-
-export const aircraftModels = {
-  B738: 'Boeing 737-800',
-  B739: 'Boeing 737-900',
-  B77W: 'Boeing 777-300ER',
-  B789: 'Boeing 787-9',
-  B788: 'Boeing 787-8',
-  B744: 'Boeing 747-400',
-  B748: 'Boeing 747-8',
-  A320: 'Airbus A320',
-  A321: 'Airbus A321',
-  A333: 'Airbus A330-300',
-  A359: 'Airbus A350-900',
-  A388: 'Airbus A380-800',
-  E190: 'Embraer 190',
-  AT76: 'ATR 72-600',
-}

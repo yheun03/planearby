@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { resolveAirline } from '../../utils/airlines.js'
+import { isSupportedAircraft } from '../../utils/aircraft.js'
 import { mkdirSync, readFileSync, writeFileSync, renameSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { distanceKm, SEARCH_RADIUS_KM, SEARCH_RADIUS_NM } from '../../utils/geo.js'
@@ -78,7 +79,7 @@ export function createApiHandler({
     res.end(JSON.stringify(body))
   }
 
-  async function externalJson(url, session) {
+  async function externalJson(url, session, { allowNotFound = false } = {}) {
     const signal = AbortSignal.any([session.controller.signal, AbortSignal.timeout(8000)])
     try {
       const response = await fetchImpl(url, {
@@ -88,6 +89,7 @@ export function createApiHandler({
           ...(String(url).startsWith('https://api.adsb.lol/') ? { 'User-Agent': userAgent } : {}),
         },
       })
+      if (response.status === 404 && allowNotFound) return null
       if (response.status === 429) throw { status: 429, code: 'RATE_LIMIT' }
       if (!response.ok) throw { status: 502, code: 'UPSTREAM_ERROR' }
       return await response.json()
@@ -161,6 +163,7 @@ export function createApiHandler({
           expiresAt: now() + duration,
           observed: new Map(),
           detailCache: new Map(),
+          routeRequests: 0,
           lastNearby: 0,
           nearbyCache: null,
           nearbyPending: null,
@@ -174,7 +177,8 @@ export function createApiHandler({
         return send(res, 201, {
           id,
           expiresAt: session.expiresAt,
-          detailsAvailable: Boolean(apiKey),
+          detailsAvailable: true,
+          schedulesAvailable: Boolean(apiKey),
         })
       }
 
@@ -215,6 +219,7 @@ export function createApiHandler({
                       Math.abs(item.lat) <= 90 &&
                       Math.abs(item.lon) <= 180 &&
                       item.alt_baro !== 'ground' &&
+                      isSupportedAircraft({ type: item.t, category: item.category }) &&
                       (item.seen_pos == null || item.seen_pos <= 30),
                   )
                   .map((item) => ({
@@ -223,7 +228,7 @@ export function createApiHandler({
                     lat: item.lat,
                     lon: item.lon,
                     track: validNumber(item.track) ? ((item.track % 360) + 360) % 360 : null,
-                    type: typeof item.t === 'string' ? item.t : null,
+                    type: item.t.trim().toUpperCase(),
                     registration: typeof item.r === 'string' ? item.r : null,
                   }))
                   .filter((item) => item.id && distanceKm(session, item) <= SEARCH_RADIUS_KM)
@@ -232,7 +237,7 @@ export function createApiHandler({
                 session.observed = new Map(
                   aircraft.filter((item) => item.callsign).map((item) => [item.callsign, item]),
                 )
-                session.nearbyCache = { aircraft, detailsAvailable: Boolean(apiKey) }
+                session.nearbyCache = { aircraft, detailsAvailable: true }
                 session.lastNearby = now()
               })().finally(() => {
                 session.nearbyPending = null
@@ -246,10 +251,48 @@ export function createApiHandler({
         const callsign = normalizedCallsign(url.searchParams.get('callsign'))
         if (!/^[A-Z0-9]{2,10}$/.test(callsign) || !session.observed.has(callsign))
           return send(res, 400, { code: 'UNOBSERVED_FLIGHT' })
-        if (!apiKey) return send(res, 200, { detailsStatus: 'unavailable' })
         if (!session.detailCache.has(callsign)) {
           // Store the promise too, so concurrent requests never duplicate a paid call.
           const details = (async () => {
+            if (!apiKey) {
+              // Callsign routes have no flight date or schedule. Keep them explicitly unverified.
+              if (session.routeRequests >= 12) return { detailsStatus: 'unavailable' }
+              session.routeRequests += 1
+              try {
+                const body = await externalJson(
+                  `https://api.adsbdb.com/v0/callsign/${encodeURIComponent(callsign)}`,
+                  session,
+                  { allowNotFound: true },
+                )
+                const route = body?.response?.flightroute
+                if (
+                  !route ||
+                  ![route.callsign, route.callsign_icao, route.callsign_iata].some(
+                    (value) => normalizedCallsign(value) === callsign,
+                  )
+                )
+                  return { detailsStatus: 'unavailable' }
+                const airportCode = (airport) => {
+                  if (/^[A-Z]{3}$/.test(airport?.iata_code)) return airport.iata_code
+                  if (/^[A-Z0-9]{4}$/.test(airport?.icao_code)) return airport.icao_code
+                  return null
+                }
+                return {
+                  detailsStatus: 'route',
+                  dep: airportCode(route.origin),
+                  arr: airportCode(route.destination),
+                  depName: typeof route.origin?.name === 'string' ? route.origin.name : null,
+                  arrName:
+                    typeof route.destination?.name === 'string' ? route.destination.name : null,
+                  depTime: null,
+                  arrTime: null,
+                }
+              } catch (error) {
+                if (session.controller.signal.aborted) throw error
+                // Optional route lookup failure must not stop live position updates.
+                return { detailsStatus: 'unavailable' }
+              }
+            }
             reserveDetailRequest()
             const endpoint = new URL('https://airlabs.co/api/v9/flight')
             endpoint.searchParams.set('flight_icao', callsign)
@@ -261,7 +304,11 @@ export function createApiHandler({
               throw { status: 502, code: 'FLIGHT_DETAIL_ERROR' }
             }
             const detail = body.response
-            if (!detail || !isMatchingFlight(session.observed.get(callsign), detail, now()))
+            if (
+              !detail ||
+              !isMatchingFlight(session.observed.get(callsign), detail, now()) ||
+              (detail.aircraft_icao && !isSupportedAircraft({ type: detail.aircraft_icao }))
+            )
               return { detailsStatus: 'unverified' }
             const code = (value) =>
               typeof value === 'string' && /^[A-Z0-9]{2,5}$/.test(value) ? value : null

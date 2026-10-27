@@ -15,9 +15,11 @@ npm install
 npm run dev
 ```
 
-표시된 로컬 주소(기본 `http://127.0.0.1:5173`)를 엽니다. 첫 화면의 항공편은 **가상의 예시 데이터**이며, 조회 시작 버튼을 눌러야 위치 권한을 요청합니다. 실제 조회에서는 예시 데이터를 섞지 않습니다.
+표시된 로컬 주소(기본 `http://127.0.0.1:5173`)를 열면 자동으로 위치 확인과 조회를 시작합니다. 위치 권한이 없으면 브라우저에서 허용 여부를 묻습니다. 예시 데이터는 오류 화면의 `예시 화면 보기`를 선택했을 때만 표시하며 실제 조회에 섞지 않습니다.
 
-항공기 위치는 별도 키 없이 조회합니다. 선택 사항인 운항 상세 정보에는 서버의 AirLabs 키가 필요합니다.
+**키 없이 무료로 사용할 수 있습니다.** 항공기 위치는 adsb.lol, 출발·도착 공항은 adsbdb에서 조회합니다. adsbdb의 공항 정보는 호출부호 기준 참고 노선이며 당일 운항을 보장하지 않습니다. 예정 시간은 제공하지 않으므로 `정보 없음`으로 표시합니다.
+
+예정 시간까지 조회하려면 별도의 스케줄 데이터가 필요합니다. 기존 AirLabs 연동은 선택 사항으로 남겨 두었으며, 키를 발급받았을 때만 아래 설정을 사용합니다. 키 없이 실행하면 AirLabs에 요청하지 않습니다.
 
 ```sh
 cp .env.example .env
@@ -32,7 +34,7 @@ AIRLABS_MONTHLY_LIMIT=1000
 PORT=4173
 ```
 
-키를 설정하지 않아도 위치·호출부호·제공되는 기종과 진행 방향을 표시합니다. 항공사는 호출부호를 외부 데이터셋과 매칭해 이름과 IATA 코드를 표시하고, 공항·예정 시간 등 운항 상세 정보는 `정보 없음`으로 안내합니다. `VITE_` 환경 변수에 키를 넣으면 안 됩니다. `.env`와 사용량 기록 `.data/`는 Git에서 제외합니다.
+키를 설정하지 않아도 위치·호출부호·기종·진행 방향과 제공되는 출발·도착 공항을 표시합니다. 항공사는 호출부호를 외부 데이터셋과 매칭해 이름과 IATA 코드를 표시합니다. 예정 시간을 거리나 속도로 추정하거나 실제·예상 시각으로 대체하지 않습니다. `VITE_` 환경 변수에 키를 넣으면 안 됩니다. `.env`와 사용량 기록 `.data/`는 Git에서 제외합니다.
 
 adsb.lol은 유효한 연락처가 들어간 식별용 User-Agent를 요구합니다. 기본값은 이 프로젝트 저장소 주소입니다. 포크해서 운영한다면 `ADSB_USER_AGENT`의 URL을 본인의 실제 연락 가능한 프로젝트 주소로 바꿔 주세요.
 
@@ -47,15 +49,16 @@ npm start
 
 ## 조회 동작
 
-- 브라우저 위치 권한은 사용자가 조회 또는 설정의 위치 재요청 버튼을 누를 때만 요청합니다.
-- 시작 버튼을 누른 시점부터 최대 30초 동안 조회하며, 위치 확인 시간도 포함합니다.
+- 접속 시 한 번 자동으로 조회합니다. 이후에는 다시 조회 또는 설정의 위치 재요청 버튼을 사용할 수 있습니다. 브라우저에서 차단한 권한을 자동으로 해제하지 않습니다.
+- 조회를 시작한 시점부터 최대 30초 동안 조회하며, 위치 확인 시간도 포함합니다. 자동 종료나 직접 중지 후 자동으로 새 조회를 시작하지 않습니다.
 - `utils/geo.js`의 `SEARCH_RADIUS_KM`을 해리로 올림 변환해 adsb.lol에 요청하고, 응답을 Haversine 수평 거리로 다시 계산해 지정한 반경 이하인 항공기만 표시합니다. 지상 항공기와 30초보다 오래된 위치는 제외합니다.
 - 약 7초마다 위치를 갱신합니다. 고도는 거리 계산에 포함하지 않습니다.
-- 현재 선택한 항공기에 대해서만 AirLabs 상세 정보를 조회하고, 같은 호출부호의 결과를 세션 동안 재사용합니다. 직접 선택하거나 자동 전환하면 해당 항공편의 정보를 필요할 때 조회합니다.
+- OpenFlights 기종 데이터에서 에어버스·보잉·봄바르디어 계열(구 Canadair CRJ·Challenger, Dash 8 포함)로 확인된 항공기만 표시합니다. GLEX와 헬기, 다른 제조사 및 확인할 수 없는 기종은 제외합니다. 이 필터는 보드와 레이더에 공통 적용합니다.
+- 현재 선택한 항공기에 대해서만 상세 정보를 조회하고, 같은 호출부호의 결과를 세션 동안 재사용합니다. 키가 없으면 adsbdb의 무료 노선 조회를 사용하며 세션당 최대 12편으로 제한합니다. 노선 조회 실패나 등록되지 않은 호출부호는 위치 조회를 중단시키지 않습니다.
 - 자동 전환은 처음부터 거리순으로 미표시 항공기를 순회하고, 모두 표시하면 다시 순회합니다. 직접 선택한 뒤에는 10초 후 다음 항공기로 넘어갑니다. 보드 아래 버튼으로 일시정지할 수 있으며, 설정 창이 열려 있거나 탭이 숨겨지면 자동 전환을 멈춥니다.
-- 호출부호·제공되는 기체 식별자·수신 시점·위치·운항 날짜를 검증합니다. 현재 운항과 일치한다고 확인할 수 없는 상세 정보는 표시하지 않습니다.
+- AirLabs를 선택적으로 설정한 경우 호출부호·제공되는 기체 식별자·수신 시점·위치·운항 날짜를 검증합니다. 검증되지 않은 AirLabs 상세는 표시하지 않습니다. adsbdb 노선에는 운항 날짜·시간·실시간 위치가 없으므로 확정된 당일 노선으로 표시하지 않고 참고 정보임을 명시합니다.
 - 예정 시간은 각 공항의 현지 시간입니다. 실제 시간이나 지연을 반영한 예상 시간으로 표현하지 않습니다.
-- 항공사 이름과 IATA/ICAO 코드는 OpenFlights의 생성된 스냅샷으로 매칭합니다. 공항·기종 이름은 기존 로컬 목록을 사용합니다. 없는 항목은 원래 코드를 표시하며 이름 조회용 추가 AirLabs 요청을 하지 않습니다.
+- 항공사 이름과 IATA/ICAO 코드, 기종 이름은 OpenFlights의 생성된 스냅샷을 사용합니다. 공항은 기존 다국어 목록을 우선하고, 없는 공항은 adsbdb의 원래 이름이나 코드를 표시합니다. 이름 조회용 추가 AirLabs 요청을 하지 않습니다.
 - 중지, 시간 만료, 탭을 숨기거나 페이지를 떠날 때 타이머와 진행 중인 요청을 정리합니다.
 - 빈 결과가 실제 주변에 항공기가 없다는 의미는 아닙니다. 수신 범위와 데이터 지연의 영향을 받습니다.
 
@@ -104,15 +107,18 @@ assets/scss/base/                             기본 스타일과 유틸리티 �
 assets/scss/layout/                           레이아웃 스타일
 assets/scss/projects/planearby/               테마·대시보드·설정·플랩 스타일
 assets/data/airlines.json                     외부 항공사 데이터로 생성한 스냅샷
-assets/data/projects/planearby/flights.js      가상의 예시와 기존 공항·기종 코드 이름
+assets/data/planes.json                       외부 데이터에서 추린 표시 대상 기종
+assets/data/projects/planearby/flights.js      가상의 예시와 기존 공항 번역
 public/images/projects/planearby/             프로젝트별 favicon·공유 이미지
 i18n/ko.js, en.js, ja.js, index.js             언어별 문구와 등록
 utils/geo.js                                 서버·화면 공용 거리·방위·탐지 반경
 utils/airlines.js                            외부 데이터 기반 항공사 코드 매칭
+utils/aircraft.js                             공용 기종 필터와 기종명
 server/api/aircraft.js                        중계·세션·운항 검증·요청 제한
 server/index.js                              빌드 결과와 API를 제공하는 서버
 scripts/build.mjs                            빌드와 초기 HTML 사전 렌더링
 scripts/update-airlines.mjs                   외부 항공사 데이터 스냅샷 갱신
+scripts/update-aircraft.mjs                   외부 기종 데이터 스냅샷 갱신
 tests/                                       거리·방위·API·항공사 매칭 테스트
 ```
 
@@ -135,6 +141,7 @@ tests/                                       거리·방위·API·항공사 매�
 
 ```sh
 npm run data:update:airlines
+npm run data:update:aircraft
 ```
 
 갱신 스크립트는 공식 CSV를 커밋에 고정해 다운로드하고, CSV 파싱·검증에 성공한 경우에만 기존 파일을 교체합니다. 새 데이터와 그 `source` 변경을 확인한 뒤 함께 버전 관리하세요.
@@ -142,6 +149,7 @@ npm run data:update:airlines
 ## 데이터 출처
 
 - [adsb.lol API](https://api.adsb.lol/docs) · [공개 데이터와 ODbL 안내](https://www.adsb.lol/docs/open-data/api/)
+- [adsbdb 공개 API와 응답 필드](https://github.com/mrjackwills/adsbdb)
 - [OpenFlights 항공사 데이터](https://openflights.org/data.php#airline) · [ODbL 1.0](https://opendatacommons.org/licenses/odbl/1-0/)
 - [AirLabs Flight API](https://airlabs.co/docs/flight) · [요금제](https://airlabs.co/#pricing)
 - [방향 센서 권한](https://developer.mozilla.org/en-US/docs/Web/API/DeviceOrientationEvent/requestPermission_static) · [Safari 나침반 정확도](https://developer.apple.com/documentation/webkitjs/deviceorientationevent/1804769-webkitcompassaccuracy)

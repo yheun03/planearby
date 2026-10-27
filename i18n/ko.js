@@ -70,7 +70,10 @@ export default {
   localAirportTime: '출발·도착 시간은 각 공항의 현지 예정 시간입니다.',
   missing: '정보 없음',
   unverified: '운항 일치를 확인하지 못해 상세 정보를 표시하지 않습니다.',
-  noKey: '항공기 위치를 조회 중입니다. 운항 상세 정보는 서버의 AirLabs 키 설정 후 제공돼요.',
+  noScheduleSource:
+    '출발·도착지는 참고 노선이며, 예정 시간은 제공되지 않아 정보 없음으로 표시해요.',
+  referenceRoute:
+    '호출부호 기준 참고 노선입니다. 오늘의 실제 운항과 다를 수 있으며 예정 시간은 제공되지 않습니다.',
   loadingDetails: '운항 상세 정보를 확인하고 있어요.',
   radar: '내 주변 레이더',
   you: '내 위치',
@@ -83,13 +86,13 @@ export default {
     '반경 {radius}km 레이더입니다. 위쪽은 설정하거나 감지한 바라보는 방향입니다. 항공기를 선택하면 왼쪽 보드에 해당 항공편을 표시합니다.',
   previewLocation: '서울 · 예시 위치',
   currentLocation: '브라우저에서 확인한 내 위치',
-  waitingLocation: '조회 시작 후 위치가 표시돼요',
+  waitingLocation: '현재 위치를 확인하면 표시돼요',
   updated: '마지막 수신',
   liveText: '수신 위치는 실제 위치와 차이가 있을 수 있어요.',
   endedText: '마지막 결과입니다. 다시 조회하면 현재 위치를 새로 확인해요.',
   emptyTitle: '아직 발견한 항공기가 없어요',
   emptyText:
-    '수신 범위와 데이터 지연으로 조회되지 않을 수 있어요. 주변에 항공기가 없다는 뜻은 아니에요.',
+    '에어버스·보잉·봄바르디어 기종만 표시하며 GLEX와 헬기는 제외해요. 수신 범위와 데이터 지연에 따라 조회되지 않을 수 있어요.',
   locatingText: '위치 권한을 허용하면 내 주변의 하늘을 살펴볼게요.',
   loadingTitle: '주변 항공기를 찾고 있어요',
   loadingText: '반경 {radius}km 이내에 수신된 항공기를 확인하고 있어요.',

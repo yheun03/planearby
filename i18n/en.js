@@ -69,8 +69,10 @@ export default {
   localAirportTime: 'Scheduled times are local to each departure and arrival airport.',
   missing: 'Not available',
   unverified: 'Flight identity could not be verified. Details are not displayed.',
-  noKey:
-    'Aircraft positions are available. Set a server-side AirLabs key to enable flight details.',
+  noScheduleSource:
+    'Departure and arrival airports are reference routes. Scheduled times are not supplied and remain unavailable.',
+  referenceRoute:
+    'Reference route matched by callsign. It may differ from today’s flight. Scheduled times are not supplied.',
   loadingDetails: 'Checking flight details.',
   radar: 'Your nearby radar',
   you: 'You',
@@ -83,13 +85,13 @@ export default {
     'A {radius} km radar with your facing direction at the top. Select an aircraft to show it on the flight board.',
   previewLocation: 'Seoul · Example location',
   currentLocation: 'Your browser location',
-  waitingLocation: 'Your location appears when you start',
+  waitingLocation: 'Your location appears after it is confirmed',
   updated: 'Last received',
   liveText: 'Received positions may differ from actual positions.',
   endedText: 'These are the last results. Scan again to refresh your location.',
   emptyTitle: 'No aircraft received just yet',
   emptyText:
-    'Receiver coverage and data delays affect results. This doesn’t mean there are no aircraft nearby.',
+    'Only Airbus, Boeing and Bombardier types are shown. GLEX and helicopters are excluded. Receiver coverage and data delays affect results.',
   locatingText: 'Allow location access to discover your nearby sky.',
   loadingTitle: 'Looking for nearby aircraft',
   loadingText: 'Checking received aircraft within a {radius} km radius.',
