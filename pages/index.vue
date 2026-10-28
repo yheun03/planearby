@@ -70,6 +70,9 @@ let lastSensorRender = 0
 const location = ref(null)
 const locationMode = ref('device')
 const manualLocation = ref(null)
+const deviceLocationPending = ref(false)
+const deviceLocationError = ref('')
+let deviceLocationController
 const lastUpdated = ref(null)
 const errorKey = ref('')
 const permission = ref('prompt')
@@ -282,6 +285,7 @@ function getLocation(signal) {
 function finishSession(nextState = 'ended') {
   generation += 1
   controller?.abort()
+  cancelDeviceLocation()
   clearInterval(refreshTimer)
   state.value = nextState
   if (nextState === 'ended' || nextState === 'error') {
@@ -501,7 +505,7 @@ function listenForCompass() {
   compassTimer = setTimeout(compassUnavailable, 5000)
 }
 
-async function startScan() {
+async function startScan(positionOverride) {
   if (active.value) return
   automaticScanPending = false
   if (Date.now() < quotaRetryAt) {
@@ -527,12 +531,12 @@ async function startScan() {
     if (locationMode.value === 'manual' && manualLocation.value) {
       location.value = { ...manualLocation.value }
     } else {
-      const position = await getLocation(controller.signal)
+      const position = positionOverride?.coords || (await getLocation(controller.signal)).coords
       if (generation !== currentGeneration) return
       location.value = {
-        lat: position.coords.latitude,
-        lon: position.coords.longitude,
-        accuracy: position.coords.accuracy,
+        lat: position.latitude,
+        lon: position.longitude,
+        accuracy: position.accuracy,
       }
       permission.value = 'granted'
     }
@@ -579,6 +583,7 @@ function applyManualLocation(point) {
     Math.abs(point.lon) > 180
   )
     return
+  deviceLocationError.value = ''
   manualLocation.value = { lat: point.lat, lon: point.lon }
   location.value = { ...manualLocation.value }
   locationMode.value = 'manual'
@@ -586,12 +591,38 @@ function applyManualLocation(point) {
   void startScan()
 }
 
-function useDeviceLocation() {
-  locationMode.value = 'device'
-  location.value = null
-  settingsDialog.value?.close()
-  finishSession('idle')
-  void startScan()
+function cancelDeviceLocation() {
+  deviceLocationController?.abort()
+  deviceLocationPending.value = false
+}
+
+async function useDeviceLocation() {
+  if (deviceLocationPending.value || state.value === 'locating') return
+  if (Date.now() < quotaRetryAt) {
+    showQuotaNotice()
+    return
+  }
+  const request = new AbortController()
+  deviceLocationController = request
+  deviceLocationPending.value = true
+  deviceLocationError.value = ''
+  try {
+    // Keep the selected location and its scan until GPS has succeeded.
+    const position = await getLocation(request.signal)
+    if (request.signal.aborted) return
+    permission.value = 'granted'
+    locationMode.value = 'device'
+    settingsDialog.value?.close()
+    locationPicker.value?.close()
+    finishSession('idle')
+    void startScan(position)
+  } catch (error) {
+    if (request.signal.aborted) return
+    if (error.uiKey === 'denied') permission.value = 'denied'
+    deviceLocationError.value = error.uiKey || 'unavailable'
+  } finally {
+    if (deviceLocationController === request) deviceLocationPending.value = false
+  }
 }
 
 function applyPreferences() {
@@ -1144,6 +1175,24 @@ onUnmounted(() => {
           />
           <span>{{ locationText }}</span>
           <button @click="openLocationPicker">{{ t('chooseLocation') }}</button>
+          <button
+            class="radar-panel__device-location"
+            :disabled="deviceLocationPending || state === 'locating'"
+            @click="useDeviceLocation"
+          >
+            <LocateFixed
+              aria-hidden="true"
+              :size="14"
+            />
+            {{ t(deviceLocationPending ? 'locating' : 'useCurrentLocation') }}
+          </button>
+          <p
+            v-if="deviceLocationError"
+            class="radar-panel__location-error"
+            role="status"
+          >
+            {{ t(deviceLocationError) }} {{ t('locationKept') }}
+          </p>
         </div>
         <div class="radar-panel__direction">
           <Navigation2
@@ -1455,10 +1504,17 @@ onUnmounted(() => {
           </span>
         </div>
         <p>{{ t('locationChoiceHint') }}</p>
+        <p
+          v-if="deviceLocationError"
+          class="setting-group__message"
+          role="status"
+        >
+          {{ t(deviceLocationError) }} {{ t('locationKept') }}
+        </p>
         <p v-if="locationMode === 'manual'">{{ t('manualLocation') }} · {{ coordinateText }}</p>
         <button
           class="permission-button"
-          :disabled="state === 'locating' && locationMode === 'device'"
+          :disabled="deviceLocationPending || state === 'locating'"
           @click="useDeviceLocation"
         >
           <LocateFixed
@@ -1466,9 +1522,7 @@ onUnmounted(() => {
             :size="16"
           />
           {{
-            state === 'locating' && locationMode === 'device'
-              ? t('locating')
-              : t('useCurrentLocation')
+            deviceLocationPending || state === 'locating' ? t('locating') : t('useCurrentLocation')
           }}
           <ArrowUpRight
             aria-hidden="true"
@@ -1504,10 +1558,14 @@ onUnmounted(() => {
     ref="locationPicker"
     :initial-location="location || manualLocation || previewCenter"
     :language="language"
+    :device-location-pending="deviceLocationPending || state === 'locating'"
+    :device-location-error="deviceLocationError"
+    @device-location="useDeviceLocation"
     @select="applyManualLocation"
     @close="
       () => {
         choosingLocation = false
+        cancelDeviceLocation()
         resetRotationTimer()
       }
     "

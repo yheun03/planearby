@@ -349,6 +349,18 @@ test('manual selection works after GPS denial and stays active when permission c
     await flush()
     assert.equal(previousSignal.aborted, true)
     assert.equal(requests.length, 3)
+    // Returning to GPS must not discard the manual scan when permission is denied.
+    target.querySelector('.radar-panel__device-location').click()
+    await flush()
+    assert.equal(gps.mock.callCount(), 2)
+    assert.match(
+      target.querySelector('.radar-panel__location-error').textContent,
+      /현재 조회 위치는 유지/,
+    )
+    assert.equal(target.querySelector('.radar__you').getAttribute('aria-label'), '선택한 위치')
+    t.mock.timers.tick(5000)
+    await flush()
+    assert.match(requests[3], /\/point\/35\.180\/129\.076\//)
     status.state = 'granted'
     gps.mock.mockImplementation((success) => {
       queueMicrotask(() =>
@@ -359,8 +371,13 @@ test('manual selection works after GPS denial and stays active when permission c
     target.querySelector('.settings-fab').click()
     target.querySelector('.setting-group--location .permission-button').click()
     await flush()
-    assert.equal(gps.mock.callCount(), 2)
-    assert.match(requests[3], /\/point\/37\.566\/126\.978\//)
+    assert.equal(
+      gps.mock.callCount(),
+      3,
+      'returning to GPS uses the acquired position without a second GPS request',
+    )
+    assert.match(requests[4], /\/point\/37\.566\/126\.978\//)
+    assert.equal(target.querySelector('.radar-panel__location-error'), null)
     assert.equal(target.querySelector('.radar__you').getAttribute('aria-label'), '내 위치')
   } finally {
     app.unmount()
@@ -427,6 +444,27 @@ test('a late GPS result cannot replace a manually selected center', async (t) =>
     await flush()
     assert.equal(requests.length, 2)
     assert.ok(requests.every((url) => url.includes('/point/35.180/129.076/')))
+    // A GPS return request must also respect a later manual selection or stop.
+    target.querySelector('.radar-panel__device-location').click()
+    await flush()
+    assert.equal(target.querySelector('.radar-panel__device-location').disabled, true)
+    const pendingGps = gpsSuccess
+    target.querySelector('.radar-panel__location button').click()
+    await flush()
+    target.querySelector('.test-location-apply').click()
+    await flush()
+    pendingGps({ coords: { latitude: 37.5665, longitude: 126.978, accuracy: 100 } })
+    await flush()
+    assert.equal(requests.length, 3)
+    assert.match(requests[2], /\/point\/35\.180\/129\.076\//)
+    target.querySelector('.radar-panel__device-location').click()
+    await flush()
+    target.querySelector('.scan-button').click()
+    gpsSuccess({ coords: { latitude: 37.5665, longitude: 126.978, accuracy: 100 } })
+    await flush()
+    t.mock.timers.tick(5000)
+    await flush()
+    assert.equal(requests.length, 3)
   } finally {
     app.unmount()
     target.remove()

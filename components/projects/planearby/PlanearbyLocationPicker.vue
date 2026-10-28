@@ -1,6 +1,6 @@
 <script setup>
 import { computed, nextTick, onUnmounted, ref } from 'vue'
-import { MapPin, Minus, Plus, Search, X } from '@lucide/vue'
+import { LocateFixed, MapPin, Minus, Plus, Search, X } from '@lucide/vue'
 import { I18N_MESSAGES as messages } from '~/i18n/index.js'
 import { SEARCH_RADIUS_KM } from '~/utils/geo.js'
 import 'leaflet/dist/leaflet.css'
@@ -8,8 +8,10 @@ import 'leaflet/dist/leaflet.css'
 const props = defineProps({
   initialLocation: { type: Object, required: true },
   language: { type: String, default: 'ko' },
+  deviceLocationPending: { type: Boolean, default: false },
+  deviceLocationError: { type: String, default: '' },
 })
-const emit = defineEmits(['select', 'close'])
+const emit = defineEmits(['select', 'close', 'device-location'])
 const dialog = ref(null)
 const mapElement = ref(null)
 const searchInput = ref(null)
@@ -146,7 +148,10 @@ function editSearch() {
 }
 
 async function searchAddress() {
-  const query = searchQuery.value.trim()
+  // Photon treats '서울시' differently from the official city name.
+  const query = searchQuery.value
+    .trim()
+    .replace(/(^|\s)서울(?:특별시|시)?(?=\s|$)/g, '$1서울특별시')
   if (!query || searching.value) return
   const cacheKey = `${props.language}:${query}`
   const cached = searchCache.get(cacheKey)
@@ -175,10 +180,27 @@ async function searchAddress() {
     const body = await response.json()
     if (controller.signal.aborted || current !== generation || !dialog.value?.open) return
     if (!Array.isArray(body.features)) throw new Error('Invalid search response')
+    const requestedCity = query.match(
+      /(?:^|\s)([가-힣]+(?:특별자치시|특별시|광역시|시))(?=\s|$)/,
+    )?.[1]
+    const requestedRoad = query.match(/(?:^|\s)([가-힣0-9·]+(?:대로|로|길))(?=\s|$)/)?.[1]
+    const requestedNumber = requestedRoad
+      ? query
+          .slice(query.indexOf(requestedRoad) + requestedRoad.length)
+          .trim()
+          .match(/^\d+(?:-\d+)?(?=\s|$)/)?.[0]
+      : null
     const results = body.features
       .filter((item) => {
         const [lon, lat] = item.geometry?.coordinates || []
         return (
+          (!requestedCity ||
+            [item.properties?.city, item.properties?.state].includes(requestedCity)) &&
+          (!requestedRoad ||
+            (item.properties?.street || item.properties?.name) === requestedRoad) &&
+          (!requestedNumber ||
+            !item.properties?.housenumber ||
+            item.properties.housenumber === requestedNumber) &&
           item.geometry?.type === 'Point' &&
           Number.isFinite(lat) &&
           Number.isFinite(lon) &&
@@ -192,6 +214,7 @@ async function searchAddress() {
         return {
           id: `${details.osm_type || ''}-${details.osm_id || index}`,
           name: details.name || details.street || query,
+          approximate: Boolean(requestedNumber && !details.housenumber),
           address: [
             ...new Set(
               [
@@ -224,9 +247,9 @@ async function searchAddress() {
 async function selectAddress(result) {
   latitude.value = String(result.lat)
   longitude.value = String(result.lon)
-  map?.panTo([result.lat, result.lon], { animate: false })
+  map?.setView([result.lat, result.lon], 16, { animate: false })
   searchResults.value = []
-  searchMessage.value = 'addressSelected'
+  searchMessage.value = result.approximate ? 'addressApproximate' : 'addressSelected'
   validationMessage.value = ''
   await nextTick()
   applyButton.value?.focus()
@@ -291,6 +314,25 @@ onUnmounted(destroyMap)
       <p id="location-picker-hint">{{ t('locationPickerHint') }}</p>
 
       <div class="location-picker">
+        <button
+          class="location-picker__device"
+          type="button"
+          :disabled="deviceLocationPending"
+          @click="emit('device-location')"
+        >
+          <LocateFixed
+            :size="18"
+            aria-hidden="true"
+          />
+          {{ t(deviceLocationPending ? 'locating' : 'useCurrentLocation') }}
+        </button>
+        <p
+          v-if="deviceLocationError"
+          class="location-picker__error"
+          role="status"
+        >
+          {{ t(deviceLocationError) }} {{ t('locationKept') }}
+        </p>
         <form
           class="location-picker__search"
           role="search"
@@ -362,6 +404,7 @@ onUnmounted(destroyMap)
               />
               <span>
                 <strong>{{ result.name }}</strong>
+                <small v-if="result.approximate">{{ t('addressRoadResult') }}</small>
                 <small>{{ result.address }}</small>
               </span>
             </button>

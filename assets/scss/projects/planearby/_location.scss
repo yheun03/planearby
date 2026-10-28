@@ -212,6 +212,27 @@ html:has(.location-dialog[open]) {
 }
 
 .location-picker {
+  &__device {
+    @include flex-center;
+    gap: 8px;
+    width: 100%;
+    min-height: 44px;
+    margin-bottom: 16px;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--accent-text);
+    background: var(--surface-subtle);
+    font-size: 13px;
+    font-weight: 600;
+    &:hover:not(:disabled) {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+    }
+    + .location-picker__error {
+      margin: -6px 0 16px;
+    }
+  }
   &__search {
     margin-bottom: 16px;
     > label {

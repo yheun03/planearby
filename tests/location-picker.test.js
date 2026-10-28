@@ -68,6 +68,10 @@ function fakeLeaflet() {
           center = next
           listeners.moveend?.({ target: map })
         },
+        setView(next, zoom) {
+          this.zoom = zoom
+          this.panTo(next)
+        },
       }
       maps.push(map)
       return map
@@ -88,7 +92,8 @@ function fakeLeaflet() {
 }
 
 const initialLocation = { lat: 37.5665, lon: 126.978 }
-function mountPicker() {
+function mountPicker(props = {}) {
+  const deviceRequests = []
   const selected = []
   const closed = []
   const target = document.createElement('div')
@@ -98,6 +103,8 @@ function mountPicker() {
     language: 'ko',
     onSelect: (point) => selected.push(point),
     onClose: () => closed.push(true),
+    onDeviceLocation: () => deviceRequests.push(true),
+    ...props,
   })
   const picker = app.mount(target)
   return {
@@ -105,6 +112,7 @@ function mountPicker() {
     target,
     selected,
     closed,
+    deviceRequests,
     destroy() {
       app.unmount()
       target.remove()
@@ -302,6 +310,95 @@ test('editing the query or closing the picker cancels pending address searches',
     assert.equal(view.target.querySelector('.location-picker__search-message'), null)
     view.picker.close()
     await flush()
+  } finally {
+    view.destroy()
+  }
+})
+
+test('current location is accessible from the picker and preserves unconfirmed coordinates', async () => {
+  setLeafletLoader(async () => fakeLeaflet())
+  const view = mountPicker()
+  try {
+    await view.picker.open()
+    enterCoordinates(view.target, 35.18, 129.07)
+    view.target.querySelector('.location-picker__device').click()
+    await flush()
+    assert.equal(view.deviceRequests.length, 1)
+    assert.equal(view.target.querySelector('dialog').open, true)
+    assert.equal(Number(view.target.querySelector('input[type="number"]').value), 35.18)
+    assert.equal(view.selected.length, 0)
+  } finally {
+    view.destroy()
+  }
+})
+
+test('current-location progress prevents duplicate requests and errors remain visible', async () => {
+  setLeafletLoader(async () => fakeLeaflet())
+  const view = mountPicker({ deviceLocationPending: true, deviceLocationError: 'denied' })
+  try {
+    await view.picker.open()
+    const button = view.target.querySelector('.location-picker__device')
+    assert.equal(button.disabled, true)
+    assert.match(button.textContent, /내 위치 확인 중/)
+    button.click()
+    assert.equal(view.deviceRequests.length, 0)
+    assert.match(
+      view.target.querySelector('.location-picker__error').textContent,
+      /현재 조회 위치는 유지/,
+    )
+  } finally {
+    view.destroy()
+  }
+})
+
+test('Seoul address searches exclude another city and identify a street-only match', async (t) => {
+  const leaflet = fakeLeaflet()
+  setLeafletLoader(async () => leaflet)
+  t.mock.method(globalThis, 'fetch', async (url) => {
+    assert.equal(new URL(url).searchParams.get('q'), '서울특별시 서원2길 7')
+    return Response.json({
+      features: [
+        {
+          properties: { name: '국신원룸', street: '서원2길', city: '울산광역시', housenumber: '7' },
+          geometry: { type: 'Point', coordinates: [129.3363382, 35.5630272] },
+        },
+        {
+          properties: { name: '서원2길', city: '서울특별시' },
+          geometry: { type: 'Point', coordinates: [126.9320313, 37.4777477] },
+        },
+        {
+          properties: { name: '서원7길', city: '서울특별시' },
+          geometry: { type: 'Point', coordinates: [126.933628, 37.4761131] },
+        },
+        {
+          properties: { street: '서원2길', city: '서울특별시', housenumber: '77' },
+          geometry: { type: 'Point', coordinates: [126.932, 37.478] },
+        },
+      ],
+    })
+  })
+  const view = mountPicker()
+  try {
+    await view.picker.open()
+    const input = view.target.querySelector('input[type="search"]')
+    input.value = '서울시 서원2길 7'
+    input.dispatchEvent(new window.Event('input', { bubbles: true }))
+    view.target
+      .querySelector('.location-picker__search')
+      .dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true }))
+    await flush()
+    assert.equal(view.target.querySelectorAll('.location-picker__results button').length, 1)
+    assert.match(view.target.querySelector('.location-picker__results').textContent, /도로 위치/)
+    view.target.querySelector('.location-picker__results button').click()
+    await flush()
+    assert.match(
+      view.target.querySelector('.location-picker__search-message').textContent,
+      /정확한 건물 대신/,
+    )
+    assert.equal(leaflet.maps[0].zoom, 16)
+    view.target.querySelector('.location-picker__apply').click()
+    await flush()
+    assert.deepEqual(view.selected, [{ lat: 37.47775, lon: 126.93203 }])
   } finally {
     view.destroy()
   }

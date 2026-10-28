@@ -245,3 +245,27 @@ test('stopping cancels a pending position request', async () => {
   controller.abort()
   await assert.rejects(result, { name: 'AbortError' })
 })
+
+test('KAL2102 is visible near Seowon 2-gil when airborne, while ground reports remain excluded', async () => {
+  const center = { lat: 37.4777477, lon: 126.9320313 }
+  const observation = {
+    hex: '71c730',
+    flight: 'KAL2102 ',
+    t: 'B78X',
+    category: 'A5',
+    lat: 37.555098,
+    lon: 126.797915,
+    seen_pos: 0.55,
+  }
+  for (const [alt_baro, count] of [
+    [1500, 1],
+    ['ground', 0],
+  ]) {
+    const client = createFlightClient({
+      fetchImpl: async () => positions([{ ...observation, alt_baro }]),
+    })
+    const results = await client.nearby(center)
+    assert.equal(results.length, count)
+    if (count) assert.equal(results[0].callsign, 'KAL2102')
+  }
+})

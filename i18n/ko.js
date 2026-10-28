@@ -34,6 +34,10 @@ export default {
   manualLocation: '직접 선택한 조회 위치',
   selectedLocation: '선택한 위치',
   selectedLocationBearing: '선택한 위치 기준 방위',
+  locationKept: '현재 조회 위치는 유지됩니다.',
+  addressRoadResult: '도로 위치 · 건물 번호 확인 필요',
+  addressApproximate:
+    '정확한 건물 대신 도로 위치를 찾았어요. 지도에서 위치를 맞춘 뒤 조회해 주세요.',
   useCurrentLocation: '현재 위치로 조회',
   locationChoiceHint: '현재 위치를 사용하거나 지도에서 조회할 위치를 직접 선택할 수 있어요.',
   locationPickerTitle: '조회 위치 선택',

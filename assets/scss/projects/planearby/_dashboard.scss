@@ -413,6 +413,26 @@
       text-underline-offset: 4px;
     }
   }
+  &__location > .radar-panel__device-location {
+    @include flex-center;
+    gap: 6px;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    background: var(--surface);
+    text-decoration: none;
+    &:hover:not(:disabled) {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+    }
+  }
+  &__location-error {
+    flex-basis: 100%;
+    max-width: 380px;
+    color: var(--text-secondary);
+    line-height: 1.8;
+    text-align: center;
+  }
   &__caption {
     margin-top: 25px;
     color: var(--text-muted);
