@@ -10,7 +10,7 @@
 
 ## 위치 직접 선택 — Leaflet·OpenStreetMap
 
-GPS 권한을 사용할 수 없으면 지도에서 위치를 선택하거나 위도·경도를 입력합니다. `PlanearbyLocationPicker.vue`는 창을 열 때 Leaflet을 지연 로드하고 `https://tile.openstreetmap.org/{z}/{x}/{y}.png`로 현재 지도 영역만 표시합니다. 타일 출처를 표시하고 브라우저의 기본 캐시·Referer 정책을 유지합니다. 타일 선행 수집이나 장소 검색 API는 사용하지 않습니다. 지도가 실패해도 숫자 입력은 계속 사용할 수 있습니다.
+GPS 권한을 사용할 수 없으면 지도에서 위치를 선택하거나 위도·경도를 입력합니다. `PlanearbyLocationPicker.vue`는 창을 열 때 Leaflet을 지연 로드하고 `https://tile.openstreetmap.org/{z}/{x}/{y}.png`로 현재 지도 영역만 표시합니다. 타일 출처를 표시하고 브라우저의 기본 캐시·Referer 정책을 유지합니다. 타일 선행 수집은 사용하지 않습니다. 주소 검색은 Photon 공개 API를 사용하며, 검색 버튼을 누른 경우에만 입력한 검색어를 전송합니다. 지도가 실패해도 숫자 입력은 계속 사용할 수 있습니다.
 
 확정한 좌표는 GPS를 호출하지 않고 기존 adsb.lol 위치 조회에 전달합니다. 자동 위치 권한 거부는 수동 조회를 중지하지 않습니다. 선택한 위치는 브라우저 메모리에만 유지하며 저장하지 않습니다. 지도 열기·드래그·좌표 편집 자체는 항공기 API 요청을 추가하지 않지만, 이미 실행 중인 조회는 위치를 확정하기 전까지 기존 위치에서 계속됩니다.
 
@@ -88,3 +88,11 @@ npm run data:update:aircraft
 일반 빌드나 화면 요청은 스냅샷을 다시 다운로드하지 않습니다. `assets/data/projects/planearby/flights.js`의 가상 관측은 명시적인 예시 화면에만 사용하며 실제 조회에는 섞지 않습니다.
 
 공식 데이터 안내: https://openflights.org/data.php
+
+## Photon — 주소·장소 검색
+
+`GET https://photon.komoot.io/api/?q={query}&limit=5`
+
+검색 결과의 GeoJSON Point 좌표와 이름·주소를 사용합니다. 입력 중 자동 조회하지 않으며 요청 간격은 최소 1초, 동시 요청은 1개로 제한합니다. 같은 검색어는 메모리 캐시를 사용하고 입력 변경·창 닫기 시 요청을 취소합니다. 검색 결과 선택은 지도 중심만 바꾸고 항공기 조회는 확인 버튼에서 시작합니다. 공개 데모 서버는 적정 사용량 범위에서 제공되며 운영·가용성이 보장되지 않습니다. 호환 서버는 `VITE_GEOCODING_API_URL`로 변경할 수 있습니다.
+
+공식 안내: https://github.com/komoot/photon

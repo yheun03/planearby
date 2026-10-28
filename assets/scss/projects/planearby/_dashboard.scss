@@ -238,23 +238,42 @@
     border-top: 2px solid var(--board-rule);
     color: var(--board-muted);
     font-size: 11px;
-    > span:nth-child(2) {
-      margin-left: auto;
+  }
+  &__rotation {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 44px;
+    margin: 7px 0 7px auto;
+    padding: 7px 12px;
+    border: 1px solid var(--board-heading);
+    border-radius: 6px;
+    color: var(--board-heading);
+    background: var(--flap-bg);
+    text-align: left;
+    transition:
+      border-color 150ms,
+      background 150ms;
+    > svg {
+      flex: 0 0 auto;
     }
-    > button {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 44px;
-      height: 44px;
-      padding: 0;
-      border: 1px solid var(--board-border);
-      border-radius: 3px;
-      color: var(--board-text);
-      background: var(--flap-bg);
-      &:hover {
-        border-color: var(--accent-text);
-      }
+    &:hover {
+      background: var(--board-rule);
+    }
+    &--paused {
+      border-color: var(--board-border);
+      color: var(--board-secondary);
+    }
+  }
+  &__rotation-label {
+    display: grid;
+    gap: 3px;
+    font-size: 11px;
+    font-weight: 600;
+    small {
+      color: var(--board-muted);
+      font-size: 10px;
+      font-weight: 400;
     }
   }
   &__page {
@@ -903,6 +922,58 @@
         color: var(--accent-text);
         background: var(--accent-soft);
       }
+    }
+  }
+}
+
+.service-guide {
+  width: 100%;
+  max-width: 1640px;
+  margin: 8px auto 16px;
+  border-top: 1px solid var(--border);
+  color: var(--text-secondary);
+  > summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 48px;
+    padding: 12px 0;
+    cursor: pointer;
+    list-style: none;
+    &::-webkit-details-marker {
+      display: none;
+    }
+    &::after {
+      content: '+';
+      font-size: 20px;
+      color: var(--text-muted);
+    }
+    h2 {
+      font-size: 12px;
+      font-weight: 500;
+    }
+  }
+  &[open] > summary::after {
+    content: '−';
+  }
+  &__content {
+    max-width: 760px;
+    padding: 0 0 20px;
+    font-size: 12px;
+    line-height: 1.9;
+    > p {
+      color: var(--text);
+    }
+    dl {
+      margin: 20px 0 0;
+    }
+    dt {
+      margin-top: 18px;
+      color: var(--text);
+      font-weight: 600;
+    }
+    dd {
+      margin: 6px 0 0;
     }
   }
 }

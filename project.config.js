@@ -11,7 +11,7 @@ export const projectConfig = {
   themeColorLight: '#f7f8fa',
   seo: {
     title: 'Planearby — 주변 항공기 실시간 레이더',
-    description: `현재 위치 반경 ${SEARCH_RADIUS_KM}km 항공기의 항공사, 기종, 출도착 공항과 진행 방향을 확인하세요. 무료 항공편 보드와 레이더가 5초 간격으로 갱신됩니다.`,
+    description: `현재 위치 반경 ${SEARCH_RADIUS_KM}km 항공기의 항공사, 기종, 진행 방향과 참고 출도착 노선을 확인하세요. 주소 검색과 지도 선택을 지원하며 정상 응답 시 5초마다 갱신합니다.`,
     ogImage: 'images/projects/planearby/social-card.png',
     twitterCard: 'summary_large_image',
   },

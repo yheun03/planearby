@@ -1,6 +1,34 @@
 import { projectConfig } from '../project.config.js'
 
 export default {
+  guideTitle: '사용 안내',
+  guideIntro:
+    'Planearby는 현재 위치나 직접 고른 위치를 기준으로 주변 항공기를 확인하는 레이더입니다. 항공사·기종·호출부호·진행 방향과 참고 노선을 볼 수 있습니다.',
+  guideQuestion1: '어떤 항공기가 표시되나요?',
+  guideAnswer1:
+    '선택한 위치 반경 {radius}km에서 수신된 에어버스·보잉·봄바르디어 기종을 표시합니다. 지상 항공기, 헬기, GLEX와 지원하지 않는 기종은 제외하며 수신 범위에 따라 항공기가 누락될 수 있습니다.',
+  guideQuestion2: '위치 권한을 허용하지 않아도 쓸 수 있나요?',
+  guideAnswer2:
+    '위치 직접 선택에서 주소를 검색하거나 지도를 움직이고 좌표를 입력할 수 있습니다. 이 위치로 조회를 누르면 GPS 권한 없이 선택한 지점을 기준으로 조회합니다.',
+  guideQuestion3: '위치와 노선 정보는 얼마나 정확한가요?',
+  guideAnswer3:
+    '정상 응답 시 위치는 5초마다 갱신하며 30초보다 오래된 위치는 제외합니다. 출도착 공항은 호출부호에 따른 참고 노선으로 당일 실제 운항과 다를 수 있습니다. 항행이나 안전 판단용으로 사용하지 마세요.',
+  guideQuestion4: '내 위치가 저장되나요?',
+  guideAnswer4:
+    '위치 좌표는 브라우저 메모리에서만 사용합니다. 조회 시 근사 좌표는 중계 서비스와 adsb.lol에 전달되며, 주소 검색어는 Photon에 전달됩니다. 앱은 위치를 별도로 저장하지 않습니다.',
+
+  addressSearch: '주소 검색',
+  addressPlaceholder: '주소 또는 장소를 입력하세요',
+  addressSearchButton: '검색',
+  addressSearching: '검색 중',
+  addressSearchHint: '검색 버튼을 누르면 입력한 검색어가 Photon으로 전달됩니다.',
+  addressResults: '주소 검색 결과',
+  addressNoResults: '검색 결과가 없어요. 지역명이나 다른 주소로 검색해 주세요.',
+  addressSearchError: '검색하지 못했어요. 잠시 후 다시 시도하거나 지도에서 선택해 주세요.',
+  addressSelected: '위치를 선택했어요. 지도에서 확인한 뒤 이 위치로 조회해 주세요.',
+  rotationPaused: '일시정지',
+  rotationRunning: '재생 중',
+
   chooseLocation: '위치 직접 선택',
   searchLocation: '조회 위치',
   manualLocation: '직접 선택한 조회 위치',

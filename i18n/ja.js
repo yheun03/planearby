@@ -1,4 +1,32 @@
 export default {
+  guideTitle: '使い方',
+  guideIntro:
+    'Planearbyは現在地や選択した位置の周辺の航空機を表示するレーダーです。航空会社・機種・コールサイン・進行方向と参考経路を確認できます。',
+  guideQuestion1: 'どの航空機が表示されますか？',
+  guideAnswer1:
+    '選択した位置の半径{radius}km以内で受信したエアバス・ボーイング・ボンバルディア機を表示します。地上の航空機・ヘリ・GLEX・未対応機種は除外します。受信範囲によって表示されない場合があります。',
+  guideQuestion2: '位置情報の許可なしで使えますか？',
+  guideAnswer2:
+    '位置を直接選択から住所検索・地図移動・座標入力で位置を指定できます。確定するとGPSの許可なしで選択した地点を検索します。',
+  guideQuestion3: '位置と経路の精度は？',
+  guideAnswer3:
+    '正常応答時は5秒ごとに更新し、30秒より古い位置を除外します。空港情報はコールサインに基づく参考経路で、当日の運航とは異なる場合があります。航行や安全判断には使用しないでください。',
+  guideQuestion4: '位置情報は保存されますか？',
+  guideAnswer4:
+    '座標はブラウザのメモリでのみ使用します。検索時に概算座標を中継サービスとadsb.lolへ、住所検索語をPhotonへ送信します。アプリは位置を保存しません。',
+
+  addressSearch: '住所を検索',
+  addressPlaceholder: '住所や場所を入力',
+  addressSearchButton: '検索',
+  addressSearching: '検索中',
+  addressSearchHint: '検索ボタンを押すと入力した検索語をPhotonに送信します。',
+  addressResults: '住所の検索結果',
+  addressNoResults: '結果がありません。地域名や別の住所をお試しください。',
+  addressSearchError: '検索できませんでした。後で試すか地図で選択してください。',
+  addressSelected: '位置を選択しました。地図を確認して検索してください。',
+  rotationPaused: '一時停止',
+  rotationRunning: '再生中',
+
   chooseLocation: '位置を直接選択',
   searchLocation: '検索する位置',
   manualLocation: '直接選択した検索位置',

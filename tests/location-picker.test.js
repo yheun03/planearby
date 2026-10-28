@@ -113,7 +113,7 @@ function mountPicker() {
 }
 
 function enterCoordinates(target, lat, lon) {
-  const inputs = target.querySelectorAll('input')
+  const inputs = target.querySelectorAll('input[type="number"]')
   for (const [index, value] of [lat, lon].entries()) {
     inputs[index].value = String(value)
     inputs[index].dispatchEvent(new window.Event('input', { bubbles: true }))
@@ -183,7 +183,7 @@ test('closing removes the map and reopening discards unconfirmed edits', async (
     assert.equal(leaflet.maps[0].removed, true)
     assert.equal(view.closed.length, 1)
     await view.picker.open()
-    const inputs = view.target.querySelectorAll('input')
+    const inputs = view.target.querySelectorAll('input[type="number"]')
     assert.equal(Number(inputs[0].value), initialLocation.lat)
     assert.equal(Number(inputs[1].value), initialLocation.lon)
     assert.equal(leaflet.maps.length, 2)
@@ -228,6 +228,80 @@ test('map load failure still permits coordinates to be applied', async () => {
     view.target.querySelector('.location-picker__apply').click()
     await flush()
     assert.deepEqual(view.selected, [{ lat: -33.8688, lon: 151.2093 }])
+  } finally {
+    view.destroy()
+  }
+})
+
+test('explicit address search selects coordinates and reuses cached results', async (t) => {
+  setLeafletLoader(async () => fakeLeaflet())
+  let calls = 0
+  t.mock.method(globalThis, 'fetch', async (url) => {
+    calls += 1
+    assert.equal(new URL(url).searchParams.get('q'), '서울역')
+    return Response.json({
+      features: [
+        {
+          properties: { name: '서울역', city: '서울', street: '한강대로' },
+          geometry: { type: 'Point', coordinates: [126.972, 37.553] },
+        },
+      ],
+    })
+  })
+  const view = mountPicker()
+  try {
+    await view.picker.open()
+    const input = view.target.querySelector('input[type="search"]')
+    input.value = '서울역'
+    input.dispatchEvent(new window.Event('input', { bubbles: true }))
+    await flush()
+    assert.equal(calls, 0)
+    const form = view.target.querySelector('.location-picker__search')
+    form.dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true }))
+    await flush()
+    assert.match(view.target.querySelector('.location-picker__results').textContent, /서울역/)
+    view.target.querySelector('.location-picker__results button').click()
+    await flush()
+    form.dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true }))
+    await flush()
+    assert.equal(calls, 1)
+    view.target.querySelector('.location-picker__apply').click()
+    await flush()
+    assert.deepEqual(view.selected, [{ lat: 37.553, lon: 126.972 }])
+  } finally {
+    view.destroy()
+  }
+})
+
+test('editing the query or closing the picker cancels pending address searches', async (t) => {
+  setLeafletLoader(async () => fakeLeaflet())
+  let complete
+  let signal
+  t.mock.method(globalThis, 'fetch', async (_, options) => {
+    signal = options.signal
+    return new Promise((resolve) => {
+      complete = resolve
+    })
+  })
+  const view = mountPicker()
+  try {
+    await view.picker.open()
+    const input = view.target.querySelector('input[type="search"]')
+    input.value = 'Seoul'
+    input.dispatchEvent(new window.Event('input', { bubbles: true }))
+    await flush()
+    view.target
+      .querySelector('.location-picker__search')
+      .dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true }))
+    await flush()
+    input.value = 'Busan'
+    input.dispatchEvent(new window.Event('input', { bubbles: true }))
+    assert.equal(signal.aborted, true)
+    complete(Response.json({ features: [] }))
+    await flush()
+    assert.equal(view.target.querySelector('.location-picker__search-message'), null)
+    view.picker.close()
+    await flush()
   } finally {
     view.destroy()
   }

@@ -1,4 +1,32 @@
 export default {
+  guideTitle: 'How to use Planearby',
+  guideIntro:
+    'Planearby shows nearby aircraft around your current or selected location, including airline, aircraft type, callsign, ground track and reference routes.',
+  guideQuestion1: 'Which aircraft are shown?',
+  guideAnswer1:
+    'Supported Airbus, Boeing and Bombardier aircraft received within {radius} km are shown. Ground aircraft, helicopters, GLEX and unsupported types are excluded. Receiver coverage can leave gaps.',
+  guideQuestion2: 'Can I use it without location permission?',
+  guideAnswer2:
+    'Choose a location by searching an address, moving the map or entering coordinates. Confirm the location to scan without GPS permission.',
+  guideQuestion3: 'How accurate are the positions and routes?',
+  guideAnswer3:
+    'Positions refresh every five seconds when requests succeed. Positions older than thirty seconds are excluded. Airports are callsign-based reference routes and may differ from today’s operation. Do not use this service for navigation or safety decisions.',
+  guideQuestion4: 'Is my location stored?',
+  guideAnswer4:
+    'Coordinates are used in browser memory only. Approximate coordinates go to the relay and adsb.lol when scanning, and address queries go to Photon. The app does not save your location.',
+
+  addressSearch: 'Search address',
+  addressPlaceholder: 'Enter an address or place',
+  addressSearchButton: 'Search',
+  addressSearching: 'Searching',
+  addressSearchHint: 'Press Search to send your search text to Photon.',
+  addressResults: 'Address search results',
+  addressNoResults: 'No results. Try a region name or another address.',
+  addressSearchError: 'Search unavailable. Try later or choose on the map.',
+  addressSelected: 'Location selected. Check the map and scan this location.',
+  rotationPaused: 'Paused',
+  rotationRunning: 'Playing',
+
   chooseLocation: 'Choose location',
   searchLocation: 'Search location',
   manualLocation: 'Manually selected location',

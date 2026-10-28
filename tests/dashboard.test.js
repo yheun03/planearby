@@ -491,3 +491,47 @@ test('a permitted compass resumes after returning and keeps the posture hint whi
     t.mock.timers.reset()
   }
 })
+
+test('reduced motion pauses rotation and board focus prevents unexpected flight changes', async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout', 'Date'], now: Date.UTC(2026, 9, 28) })
+  const matchMedia = window.matchMedia.bind(window)
+  t.mock.method(window, 'matchMedia', (query) => {
+    const media = matchMedia(query)
+    if (query === '(prefers-reduced-motion: reduce)')
+      Object.defineProperty(media, 'matches', { value: true })
+    return media
+  })
+  t.mock.method(globalThis, 'fetch', async () => new Response(null, { status: 404 }))
+  const target = document.createElement('div')
+  document.body.append(target)
+  const app = createApp(Dashboard)
+  app.mount(target)
+  try {
+    await flush()
+    target.querySelector('.fids-empty__preview').click()
+    await flush()
+    const rotation = target.querySelector('.flight-board__rotation')
+    const flight = () => target.querySelector('.split-flap--callsign').textContent
+    const first = flight()
+    assert.equal(rotation.getAttribute('aria-pressed'), 'true')
+    assert.equal(target.querySelector('.flight-board__content').getAttribute('aria-live'), null)
+    t.mock.timers.tick(10000)
+    await flush()
+    assert.equal(flight(), first)
+    rotation.click()
+    rotation.focus()
+    await flush()
+    t.mock.timers.tick(10000)
+    await flush()
+    assert.equal(flight(), first)
+    rotation.blur()
+    t.mock.timers.tick(10000)
+    await flush()
+    assert.notEqual(flight(), first)
+    assert.ok(target.querySelector('.service-guide dl').textContent.includes('위치 권한'))
+  } finally {
+    app.unmount()
+    target.remove()
+    t.mock.timers.reset()
+  }
+})

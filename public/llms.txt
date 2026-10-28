@@ -4,7 +4,7 @@
 
 Planearby starts when the page becomes visible and the user grants browser location permission. It polls aircraft positions every five seconds until stopped or the page is closed, with no thirty-second session limit. Background browser power policies can delay polling. Returning to the page triggers a refresh.
 
-When GPS permission is unavailable, users can choose a map location or enter latitude and longitude. The picker is accessible below the radar, from settings, and from location error messages. Confirming a point scans real aircraft around that point without GPS permission. The manually selected center is labeled separately, kept in memory only, and is not overwritten by delayed GPS callbacks or stopped by GPS permission denial. Users can switch back to their device location from settings. Leaflet loads lazily when the picker opens; OpenStreetMap tiles use the browser cache and visible attribution. Tile requests reveal the viewed map area. Failed map loading does not prevent coordinate input.
+When GPS permission is unavailable, users can search an address or place through Photon, choose a map location, or enter latitude and longitude. The picker is accessible below the radar, from settings, and from location error messages. Confirming a point scans real aircraft around that point without GPS permission. The manually selected center is labeled separately, kept in memory only, and is not overwritten by delayed GPS callbacks or stopped by GPS permission denial. Users can switch back to their device location from settings. Leaflet loads lazily when the picker opens; OpenStreetMap tiles use the browser cache and visible attribution. Tile requests reveal the viewed map area. Failed map loading does not prevent coordinate input.
 
 On mobile, HTTP LAN addresses such as http://192.168.x.x are not secure contexts for GPS or orientation APIs. The compass permission request must follow a direct button tap. Level-phone orientation is required; relative-only orientation is not treated as north. Previously permitted active compass subscriptions resume when the page becomes visible again.
 
@@ -23,3 +23,9 @@ GitHub Pages supports live tracking without an API URL, signup, keys or a separa
 - [adsbdb](https://github.com/mrjackwills/adsbdb)
 - [OpenFlights](https://openflights.org/data.php)
 - [Air Portal airline directory](https://www.airportal.go.kr/airline/airCompanyInfo.do)
+
+Address search sends only the explicitly submitted query to Photon. Searches are not triggered while typing; results are cached in memory and pending requests are cancelled when editing or closing the picker. The public demo service is subject to fair usage and availability. The auto-rotation control combines its play/pause icon, ten-second interval label and visible running/paused status in one accessible button.
+
+The visible user guide explains supported aircraft, manual location without GPS permission, position and reference-route accuracy, and location privacy. The same Korean questions and answers are included in FAQ structured data in the prerendered HTML. Metadata and structured data describe the service rather than individual live observations. There are no guarantees of search rankings or AI-answer inclusion.
+
+- [User guide](./#guide)

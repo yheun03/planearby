@@ -5,6 +5,8 @@ import vue from '@vitejs/plugin-vue'
 import { githubPagesTarget } from './utils/deployment.js'
 import { projectConfig } from './project.config.js'
 import aircraftApi from './api/aircraft.js'
+import { I18N_MESSAGES } from './i18n/index.js'
+import { SEARCH_RADIUS_KM } from './utils/geo.js'
 
 const escapeHtml = (value) =>
   String(value).replace(
@@ -75,7 +77,30 @@ export default defineConfig(({ mode }) => {
               inLanguage: ['ko', 'en', 'ja'],
               isAccessibleForFree: true,
               ...(siteUrl ? { url: siteUrl } : {}),
-              browserRequirements: 'JavaScript and geolocation permission; HTTPS or localhost',
+              browserRequirements:
+                'JavaScript; device location requires HTTPS and permission. Manual location is supported.',
+              featureList: [
+                'Nearby aircraft radar',
+                'Address and map location selection',
+                'Reference flight routes',
+                'Manual and device compass heading',
+              ],
+              subjectOf: {
+                '@type': 'FAQPage',
+                ...(siteUrl ? { '@id': `${siteUrl}#guide` } : {}),
+                name: I18N_MESSAGES.ko.guideTitle,
+                mainEntity: [1, 2, 3, 4].map((number) => ({
+                  '@type': 'Question',
+                  name: I18N_MESSAGES.ko[`guideQuestion${number}`],
+                  acceptedAnswer: {
+                    '@type': 'Answer',
+                    text: I18N_MESSAGES.ko[`guideAnswer${number}`].replaceAll(
+                      '{radius}',
+                      String(SEARCH_RADIUS_KM),
+                    ),
+                  },
+                })),
+              },
             }
             return html
               .replace(

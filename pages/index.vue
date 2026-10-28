@@ -49,6 +49,7 @@ const state = ref('idle')
 const source = ref('live')
 const flights = ref([])
 const selectedId = ref(null)
+const selectionAnnouncement = ref('')
 const selectionVersion = ref(0)
 const rotationPaused = ref(false)
 const manualHeading = ref(0)
@@ -382,6 +383,7 @@ function resetRotationTimer() {
       settingsDialog.value?.open ||
       quotaDialog.value?.open ||
       choosingLocation.value ||
+      document.activeElement?.closest('.flight-board') ||
       aircraft.value.length < 2
     )
       return
@@ -597,6 +599,10 @@ function applyPreferences() {
   document.documentElement.dataset.theme = isDark.value ? 'dark' : 'light'
   document.title = t('title')
   document.querySelector('meta[name="description"]')?.setAttribute('content', t('description'))
+  document.querySelector('meta[name="twitter:title"]')?.setAttribute('content', t('title'))
+  document
+    .querySelector('meta[name="twitter:description"]')
+    ?.setAttribute('content', t('description'))
   document.querySelector('meta[property="og:title"]')?.setAttribute('content', t('title'))
   document
     .querySelector('meta[property="og:description"]')
@@ -695,6 +701,7 @@ onMounted(async () => {
   clockTimer = setInterval(() => {
     clockNow.value = Date.now()
   }, 1000)
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) rotationPaused.value = true
   resetRotationTimer()
   document.addEventListener('visibilitychange', handleVisibility)
   window.addEventListener('pagehide', stopWhenAway)
@@ -719,6 +726,7 @@ watch(
     if (!id) return
     selectedId.value = id
     seenFlightIds.add(id)
+    selectionAnnouncement.value = `${t('flightNumber')} ${flightName(selectedFlight.value)} · ${airlineName(selectedFlight.value)}`
     selectionVersion.value += 1
     void loadSelectedDetails()
   },
@@ -757,7 +765,12 @@ onUnmounted(() => {
       <span class="header__count">
         {{ aircraft.length }} {{ t('aircraftLegend') }} / {{ SEARCH_RADIUS_KM }} km
       </span>
-      <span class="header__status">{{ statusLabel }}</span>
+      <span
+        class="header__status"
+        role="status"
+      >
+        {{ statusLabel }}
+      </span>
     </div>
     <div class="scan-controls">
       <span>{{ t('simpleScanHint') }}</span>
@@ -792,6 +805,13 @@ onUnmounted(() => {
     tabindex="-1"
   >
     <h1 class="sr-only">{{ t('hero') }}</h1>
+    <p
+      class="sr-only"
+      role="status"
+      aria-atomic="true"
+    >
+      {{ selectionAnnouncement }}
+    </p>
     <div class="sky-view">
       <section
         class="flight-board"
@@ -811,8 +831,6 @@ onUnmounted(() => {
         <div
           v-if="selectedFlight"
           class="flight-board__content"
-          aria-live="polite"
-          aria-atomic="true"
         >
           <dl class="flight-board__identity">
             <div>
@@ -1018,8 +1036,9 @@ onUnmounted(() => {
             <i>/</i>
             {{ String(aircraft.length).padStart(2, '0') }}
           </span>
-          <span>{{ t('autoRotate') }}</span>
           <button
+            class="flight-board__rotation"
+            :class="{ 'flight-board__rotation--paused': rotationPaused }"
             :aria-label="rotationPaused ? t('resumeRotation') : t('pauseRotation')"
             :aria-pressed="rotationPaused"
             @click="rotationPaused = !rotationPaused"
@@ -1027,13 +1046,17 @@ onUnmounted(() => {
             <Play
               v-if="rotationPaused"
               aria-hidden="true"
-              :size="13"
+              :size="16"
             />
             <Pause
               v-else
               aria-hidden="true"
-              :size="13"
+              :size="16"
             />
+            <span class="flight-board__rotation-label">
+              {{ t('autoRotate') }}
+              <small>{{ t(rotationPaused ? 'rotationPaused' : 'rotationRunning') }}</small>
+            </span>
           </button>
         </div>
       </section>
@@ -1153,8 +1176,27 @@ onUnmounted(() => {
         </p>
       </section>
     </div>
+    <details
+      id="guide"
+      class="service-guide"
+    >
+      <summary>
+        <h2>{{ t('guideTitle') }}</h2>
+      </summary>
+      <div class="service-guide__content">
+        <p>{{ t('guideIntro') }}</p>
+        <dl>
+          <template
+            v-for="number in 4"
+            :key="number"
+          >
+            <dt>{{ t(`guideQuestion${number}`) }}</dt>
+            <dd>{{ t(`guideAnswer${number}`) }}</dd>
+          </template>
+        </dl>
+      </div>
+    </details>
   </main>
-
   <footer class="footer">
     <span :title="coordinateText">
       {{ locationText }}
