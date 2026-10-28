@@ -21,6 +21,7 @@ import {
 } from '@lucide/vue'
 import PlanearbyAircraftIcon from '~/components/projects/planearby/PlanearbyAircraftIcon.vue'
 import PlanearbySplitFlap from '~/components/projects/planearby/PlanearbySplitFlap.vue'
+import PlanearbyLocationPicker from '~/components/projects/planearby/PlanearbyLocationPicker.vue'
 import { I18N_MESSAGES as messages } from '~/i18n/index.js'
 import { projectConfig } from '~/project.config.js'
 import { exampleFlights, previewCenter } from '~/assets/data/projects/planearby/flights.js'
@@ -42,6 +43,8 @@ const theme = ref('dark')
 const systemDark = ref(false)
 const settingsDialog = ref(null)
 const quotaDialog = ref(null)
+const locationPicker = ref(null)
+const choosingLocation = ref(false)
 const state = ref('idle')
 const source = ref('live')
 const flights = ref([])
@@ -64,18 +67,17 @@ let compassTimer
 let compassGeneration = 0
 let lastSensorRender = 0
 const location = ref(null)
+const locationMode = ref('device')
+const manualLocation = ref(null)
 const lastUpdated = ref(null)
 const errorKey = ref('')
 const permission = ref('prompt')
-const permissionMessage = ref('')
-const checkingPermission = ref(false)
 const detailCache = new Map()
 let controller
 let refreshTimer
 let generation = 0
 let permissionStatus
 let colorScheme
-let permissionController
 let pendingRefreshGeneration = null
 let automaticScanPending = true
 let retryAt = 0
@@ -83,6 +85,8 @@ let quotaRetryAt = 0
 let failedPolls = 0
 let lastPollAt = -Infinity
 let resumeOnPageShow = false
+let resumeCompassOnVisible = false
+let compassPermissionGranted = false
 
 const t = (key, values = {}) => {
   let text = messages[language.value][key] ?? messages.en[key] ?? key
@@ -176,7 +180,7 @@ const locationText = computed(() =>
   source.value === 'preview'
     ? t('previewLocation')
     : location.value
-      ? t('currentLocation')
+      ? t(locationMode.value === 'manual' ? 'manualLocation' : 'currentLocation')
       : t('waitingLocation'),
 )
 const updatedText = computed(() =>
@@ -377,6 +381,7 @@ function resetRotationTimer() {
       document.hidden ||
       settingsDialog.value?.open ||
       quotaDialog.value?.open ||
+      choosingLocation.value ||
       aircraft.value.length < 2
     )
       return
@@ -429,6 +434,11 @@ function handleOrientation(event) {
     (Number.isFinite(event.beta) && Math.abs(event.beta) > 70) ||
     (Number.isFinite(event.gamma) && Math.abs(event.gamma) > 70)
   ) {
+    clearTimeout(compassTimer)
+    compassTimer = setTimeout(compassUnavailable, 5000)
+    sensorHeading.value = null
+    headingMode.value = 'manual'
+    compassWaiting.value = false
     compassMessage.value = 'holdFlat'
     return
   }
@@ -465,20 +475,28 @@ async function enableCompass() {
       const permission = await window.DeviceOrientationEvent.requestPermission(true)
       if (current !== compassGeneration) return
       if (permission !== 'granted') {
+        compassPermissionGranted = false
         compassWaiting.value = false
         compassMessage.value = 'compassDenied'
         return
       }
     }
     if (current !== compassGeneration) return
-    window.addEventListener('deviceorientationabsolute', handleOrientation, { passive: true })
-    window.addEventListener('deviceorientation', handleOrientation, { passive: true })
-    compassTimer = setTimeout(compassUnavailable, 5000)
+    compassPermissionGranted = true
+    listenForCompass()
   } catch {
     if (current !== compassGeneration) return
     stopCompass()
     compassMessage.value = 'compassDenied'
   }
+}
+
+function listenForCompass() {
+  compassWaiting.value = true
+  compassMessage.value = 'compassWaiting'
+  window.addEventListener('deviceorientationabsolute', handleOrientation, { passive: true })
+  window.addEventListener('deviceorientation', handleOrientation, { passive: true })
+  compassTimer = setTimeout(compassUnavailable, 5000)
 }
 
 async function startScan() {
@@ -504,14 +522,18 @@ async function startScan() {
   failedPolls = 0
   lastPollAt = -Infinity
   try {
-    const position = await getLocation(controller.signal)
-    if (generation !== currentGeneration) return
-    location.value = {
-      lat: position.coords.latitude,
-      lon: position.coords.longitude,
-      accuracy: position.coords.accuracy,
+    if (locationMode.value === 'manual' && manualLocation.value) {
+      location.value = { ...manualLocation.value }
+    } else {
+      const position = await getLocation(controller.signal)
+      if (generation !== currentGeneration) return
+      location.value = {
+        lat: position.coords.latitude,
+        lon: position.coords.longitude,
+        accuracy: position.coords.accuracy,
+      }
+      permission.value = 'granted'
     }
-    permission.value = 'granted'
     state.value = 'tracking'
     refreshTimer = setInterval(() => void refreshFlights(currentGeneration), POSITION_REFRESH_MS)
     await refreshFlights(currentGeneration)
@@ -525,6 +547,7 @@ async function startScan() {
 
 function showQuotaNotice() {
   settingsDialog.value?.close()
+  locationPicker.value?.close()
   if (!quotaDialog.value?.open) quotaDialog.value?.showModal()
 }
 
@@ -540,21 +563,33 @@ function showPreview() {
   detailRequests.clear()
 }
 
-async function requestPermission() {
-  checkingPermission.value = true
-  permissionMessage.value = 'locationChecking'
-  try {
-    permissionController = new AbortController()
-    await getLocation(permissionController.signal)
-    permission.value = 'granted'
-    permissionMessage.value = 'locationReady'
-  } catch (error) {
-    if (error.name === 'AbortError') return
-    if (error.uiKey === 'denied') permission.value = 'denied'
-    permissionMessage.value = error.uiKey || 'unavailable'
-  } finally {
-    checkingPermission.value = false
-  }
+function openLocationPicker() {
+  settingsDialog.value?.close()
+  choosingLocation.value = true
+  locationPicker.value?.open()
+}
+
+function applyManualLocation(point) {
+  if (
+    !Number.isFinite(point?.lat) ||
+    !Number.isFinite(point?.lon) ||
+    Math.abs(point.lat) > 90 ||
+    Math.abs(point.lon) > 180
+  )
+    return
+  manualLocation.value = { lat: point.lat, lon: point.lon }
+  location.value = { ...manualLocation.value }
+  locationMode.value = 'manual'
+  finishSession('idle')
+  void startScan()
+}
+
+function useDeviceLocation() {
+  locationMode.value = 'device'
+  location.value = null
+  settingsDialog.value?.close()
+  finishSession('idle')
+  void startScan()
 }
 
 function applyPreferences() {
@@ -607,6 +642,7 @@ function syncLocationPermission() {
   permission.value = permissionStatus.state
   if (
     permission.value === 'denied' &&
+    locationMode.value === 'device' &&
     source.value === 'live' &&
     (active.value || !lastUpdated.value)
   ) {
@@ -618,9 +654,18 @@ function syncLocationPermission() {
 function handleVisibility() {
   if (document.hidden) {
     clearInterval(rotationTimer)
+    resumeCompassOnVisible =
+      compassPermissionGranted &&
+      (headingMode.value === 'device' ||
+        compassWaiting.value ||
+        compassMessage.value === 'holdFlat')
     stopCompass()
     compassMessage.value = ''
   } else {
+    if (resumeCompassOnVisible) {
+      resumeCompassOnVisible = false
+      listenForCompass()
+    }
     resetRotationTimer()
     startAutomaticScan()
     if (state.value === 'tracking') void refreshFlights(generation)
@@ -685,7 +730,6 @@ onUnmounted(() => {
   stopCompass()
   clearInterval(rotationTimer)
   clearInterval(clockTimer)
-  permissionController?.abort()
   document.removeEventListener('visibilitychange', handleVisibility)
   window.removeEventListener('pagehide', stopWhenAway)
   window.removeEventListener('pageshow', handlePageShow)
@@ -948,6 +992,19 @@ onUnmounted(() => {
           <h3>{{ emptyTitle }}</h3>
           <p>{{ emptyText }}</p>
           <button
+            v-if="
+              ['denied', 'unavailable', 'timeout', 'insecure', 'unsupported'].includes(errorKey)
+            "
+            class="fids-empty__location"
+            @click="openLocationPicker"
+          >
+            <MapPin
+              aria-hidden="true"
+              :size="16"
+            />
+            {{ t('chooseLocation') }}
+          </button>
+          <button
             v-if="errorKey"
             class="fids-empty__preview"
             @click="showPreview"
@@ -1018,7 +1075,11 @@ onUnmounted(() => {
           </span>
           <div
             class="radar__you"
-            :aria-label="source === 'preview' ? t('sampleYou') : t('you')"
+            :aria-label="
+              source === 'preview'
+                ? t('sampleYou')
+                : t(locationMode === 'manual' ? 'selectedLocation' : 'you')
+            "
             role="img"
           />
           <button
@@ -1033,7 +1094,7 @@ onUnmounted(() => {
                 0.45,
             }"
             :style="aircraftPosition(flight)"
-            :aria-label="`${flightName(flight)}, ${flight.distance.toFixed(2)} km, ${t('bearing')} ${Math.round(flight.bearing)}°, ${t('heading')} ${formattedTrack(flight.track)}`"
+            :aria-label="`${flightName(flight)}, ${flight.distance.toFixed(2)} km, ${t(locationMode === 'manual' ? 'selectedLocationBearing' : 'bearing')} ${Math.round(flight.bearing)}°, ${t('heading')} ${formattedTrack(flight.track)}`"
             :aria-pressed="selectedFlight?.id === flight.id"
             @click="selectFlight(flight.id)"
           >
@@ -1052,6 +1113,14 @@ onUnmounted(() => {
               <small>{{ flight.distance.toFixed(2) }} km</small>
             </span>
           </button>
+        </div>
+        <div class="radar-panel__location">
+          <MapPin
+            aria-hidden="true"
+            :size="14"
+          />
+          <span>{{ locationText }}</span>
+          <button @click="openLocationPicker">{{ t('chooseLocation') }}</button>
         </div>
         <div class="radar-panel__direction">
           <Navigation2
@@ -1334,7 +1403,7 @@ onUnmounted(() => {
               aria-hidden="true"
               :size="15"
             />
-            {{ t('locationPermission') }}
+            {{ t('searchLocation') }}
           </h3>
           <span
             :class="{ 'permission-badge--granted': permission === 'granted' }"
@@ -1343,29 +1412,42 @@ onUnmounted(() => {
             {{ permissionLabel }}
           </span>
         </div>
-        <p>{{ t('permissionHint') }}</p>
+        <p>{{ t('locationChoiceHint') }}</p>
+        <p v-if="locationMode === 'manual'">{{ t('manualLocation') }} · {{ coordinateText }}</p>
         <button
           class="permission-button"
-          :disabled="checkingPermission || active"
-          @click="requestPermission"
+          :disabled="state === 'locating' && locationMode === 'device'"
+          @click="useDeviceLocation"
         >
           <LocateFixed
             aria-hidden="true"
             :size="16"
           />
-          {{ checkingPermission ? t('locating') : t('requestPermission') }}
+          {{
+            state === 'locating' && locationMode === 'device'
+              ? t('locating')
+              : t('useCurrentLocation')
+          }}
           <ArrowUpRight
             aria-hidden="true"
             :size="15"
           />
         </button>
-        <p
-          v-if="permissionMessage"
-          class="setting-group__message"
-          role="status"
+        <button
+          class="permission-button"
+          @click="openLocationPicker"
         >
-          {{ t(permissionMessage) }}
-        </p>
+          <MapPin
+            aria-hidden="true"
+            :size="16"
+          />
+          {{ t('chooseLocation') }}
+          <ArrowUpRight
+            aria-hidden="true"
+            :size="15"
+          />
+        </button>
+        <p>{{ t('permissionHint') }}</p>
       </div>
       <div class="settings-dialog__saved">
         <ShieldCheck
@@ -1376,6 +1458,18 @@ onUnmounted(() => {
       </div>
     </div>
   </dialog>
+  <PlanearbyLocationPicker
+    ref="locationPicker"
+    :initial-location="location || manualLocation || previewCenter"
+    :language="language"
+    @select="applyManualLocation"
+    @close="
+      () => {
+        choosingLocation = false
+        resetRotationTimer()
+      }
+    "
+  />
   <dialog
     ref="quotaDialog"
     class="quota-dialog"

@@ -1,6 +1,27 @@
 import { projectConfig } from '../project.config.js'
 
 export default {
+  chooseLocation: '위치 직접 선택',
+  searchLocation: '조회 위치',
+  manualLocation: '직접 선택한 조회 위치',
+  selectedLocation: '선택한 위치',
+  selectedLocationBearing: '선택한 위치 기준 방위',
+  useCurrentLocation: '현재 위치로 조회',
+  locationChoiceHint: '현재 위치를 사용하거나 지도에서 조회할 위치를 직접 선택할 수 있어요.',
+  locationPickerTitle: '조회 위치 선택',
+  locationPickerHint:
+    '지도를 움직여 핀을 맞추거나 좌표를 직접 입력하세요. 선택한 위치 반경 {radius}km의 항공기를 조회합니다.',
+  locationMapLabel: '조회할 위치를 선택하는 지도',
+  locationMapUnavailable: '지도를 불러오지 못했어요. 아래 좌표를 직접 입력해서 조회할 수 있어요.',
+  latitude: '위도',
+  longitude: '경도',
+  invalidCoordinates: '위도(-90~90)와 경도(-180~180)를 올바르게 입력해 주세요.',
+  applyLocation: '이 위치로 조회',
+  closeLocationPicker: '위치 선택 닫기',
+  zoomIn: '지도 확대',
+  zoomOut: '지도 축소',
+  coordinateInput: '좌표 직접 입력',
+  mapLoading: '지도를 불러오고 있어요',
   quotaTitle: '조회 토큰을 모두 사용했어요',
   quotaExceeded:
     'adsb.lol의 일일 조회 한도에 도달해 실시간 조회를 멈췄어요. 한도가 초기화된 후 다시 조회해 주세요.',
@@ -122,7 +143,8 @@ export default {
   granted: '허용됨',
   deniedLabel: '차단됨',
   prompt: '확인 필요',
-  permissionHint: '권한이 차단된 경우 브라우저의 사이트 설정에서 변경할 수 있어요.',
+  permissionHint:
+    '위치가 차단되어 있다면 브라우저와 기기의 위치 설정을 확인하세요. 권한 없이 지도에서 위치를 직접 선택할 수도 있어요.',
   requestPermission: '위치 권한 다시 요청',
   locationReady: '현재 위치를 확인했어요. 대시보드에서 조회를 시작해 주세요.',
   locationChecking: '위치 권한을 확인하고 있어요.',

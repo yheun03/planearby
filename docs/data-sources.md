@@ -8,6 +8,16 @@
 
 공식 문서: https://developer.mozilla.org/en-US/docs/Web/API/Geolocation_API
 
+## 위치 직접 선택 — Leaflet·OpenStreetMap
+
+GPS 권한을 사용할 수 없으면 지도에서 위치를 선택하거나 위도·경도를 입력합니다. `PlanearbyLocationPicker.vue`는 창을 열 때 Leaflet을 지연 로드하고 `https://tile.openstreetmap.org/{z}/{x}/{y}.png`로 현재 지도 영역만 표시합니다. 타일 출처를 표시하고 브라우저의 기본 캐시·Referer 정책을 유지합니다. 타일 선행 수집이나 장소 검색 API는 사용하지 않습니다. 지도가 실패해도 숫자 입력은 계속 사용할 수 있습니다.
+
+확정한 좌표는 GPS를 호출하지 않고 기존 adsb.lol 위치 조회에 전달합니다. 자동 위치 권한 거부는 수동 조회를 중지하지 않습니다. 선택한 위치는 브라우저 메모리에만 유지하며 저장하지 않습니다. 지도 열기·드래그·좌표 편집 자체는 항공기 API 요청을 추가하지 않지만, 이미 실행 중인 조회는 위치를 확정하기 전까지 기존 위치에서 계속됩니다.
+
+Leaflet: https://leafletjs.com/
+
+지도 타일 정책: https://operations.osmfoundation.org/policies/tiles/
+
 ## adsb.lol — 항공기의 수신 위치
 
 `GET https://api.adsb.lol/v2/point/{latitude}/{longitude}/{radius_nm}`

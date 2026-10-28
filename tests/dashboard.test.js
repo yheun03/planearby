@@ -50,6 +50,23 @@ compiled = compiled
     /import PlanearbySplitFlap from [^\n]+/,
     "const PlanearbySplitFlap = { props: ['text'], render() { return testH('span', String(this.text)) } }",
   )
+  .replace(
+    /import PlanearbyLocationPicker from [^\n]+/,
+    `const PlanearbyLocationPicker = {
+      props: ['initialLocation', 'language'], emits: ['select', 'close'],
+      data() { return { opened: false } },
+      methods: {
+        open() { this.opened = true },
+        close() { this.opened = false; this.$emit('close') },
+      },
+      render() {
+        return this.opened ? testH('button', {
+          class: 'test-location-apply',
+          onClick: () => { this.close(); this.$emit('select', { lat: 35.1796, lon: 129.0756 }) },
+        }, 'Apply test location') : null
+      },
+    }`,
+  )
   .replace(/from ['"]~\/([^'"]+)['"]/g, (_, path) => `from '${new URL(path, root).href}'`)
 await mkdir(new URL('../.data/', import.meta.url), { recursive: true })
 await writeFile(file, `import { h as testH } from 'vue'\n${compiled}`)
@@ -284,6 +301,193 @@ test('daily exhaustion opens the full-screen dialog and stops requests until the
   } finally {
     app.unmount()
     target.remove()
+    t.mock.timers.reset()
+  }
+})
+
+test('manual selection works after GPS denial and stays active when permission changes', async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout', 'Date'], now: Date.UTC(2026, 9, 28) })
+  const status = { state: 'denied', onchange: null }
+  t.mock.method(navigator.permissions, 'query', async () => status)
+  const gps = t.mock.method(navigator.geolocation, 'watchPosition', (_, fail) => {
+    queueMicrotask(() => fail({ code: 1 }))
+    return 1
+  })
+  const requests = []
+  let signal
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    requests.push(url)
+    signal = options.signal
+    return Response.json({ ac: [], now: Date.now() })
+  })
+  const target = document.createElement('div')
+  document.body.append(target)
+  const app = createApp(Dashboard)
+  app.mount(target)
+  try {
+    await flush()
+    assert.equal(requests.length, 0)
+    assert.ok(target.querySelector('.fids-empty__location'))
+    target.querySelector('.fids-empty__location').click()
+    await flush()
+    target.querySelector('.test-location-apply').click()
+    await flush()
+    assert.equal(requests.length, 1)
+    assert.match(requests[0], /\/point\/35\.180\/129\.076\//)
+    assert.match(target.querySelector('.footer').textContent, /직접 선택한 조회 위치/)
+    assert.equal(target.querySelector('.radar__you').getAttribute('aria-label'), '선택한 위치')
+    assert.match(target.querySelector('.permission-badge').textContent, /차단됨/)
+    status.onchange()
+    t.mock.timers.tick(5000)
+    await flush()
+    assert.equal(requests.length, 2, 'GPS denial must not stop a manual-location scan')
+    assert.equal(gps.mock.callCount(), 1)
+    const previousSignal = signal
+    target.querySelector('.radar-panel__location button').click()
+    await flush()
+    target.querySelector('.test-location-apply').click()
+    await flush()
+    assert.equal(previousSignal.aborted, true)
+    assert.equal(requests.length, 3)
+    status.state = 'granted'
+    gps.mock.mockImplementation((success) => {
+      queueMicrotask(() =>
+        success({ coords: { latitude: 37.5665, longitude: 126.978, accuracy: 100 } }),
+      )
+      return 2
+    })
+    target.querySelector('.settings-fab').click()
+    target.querySelector('.setting-group--location .permission-button').click()
+    await flush()
+    assert.equal(gps.mock.callCount(), 2)
+    assert.match(requests[3], /\/point\/37\.566\/126\.978\//)
+    assert.equal(target.querySelector('.radar__you').getAttribute('aria-label'), '내 위치')
+  } finally {
+    app.unmount()
+    target.remove()
+    t.mock.timers.reset()
+  }
+})
+
+test('manual location bypasses the secure-context GPS restriction', async (t) => {
+  Object.defineProperty(window, 'isSecureContext', { configurable: true, value: false })
+  const gps = t.mock.method(navigator.geolocation, 'watchPosition')
+  let requests = 0
+  t.mock.method(globalThis, 'fetch', async () => {
+    requests += 1
+    return Response.json({ ac: [], now: Date.now() })
+  })
+  const target = document.createElement('div')
+  document.body.append(target)
+  const app = createApp(Dashboard)
+  app.mount(target)
+  try {
+    await flush()
+    assert.ok(target.querySelector('.fids-empty__location'))
+    target.querySelector('.fids-empty__location').click()
+    await flush()
+    target.querySelector('.test-location-apply').click()
+    await flush()
+    assert.equal(requests, 1)
+    assert.equal(gps.mock.callCount(), 0)
+    assert.match(target.querySelector('.header__status').textContent, /조회 중/)
+  } finally {
+    app.unmount()
+    target.remove()
+    Object.defineProperty(window, 'isSecureContext', { configurable: true, value: true })
+  }
+})
+
+test('a late GPS result cannot replace a manually selected center', async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout', 'Date'], now: Date.UTC(2026, 9, 28) })
+  let gpsSuccess
+  t.mock.method(navigator.geolocation, 'watchPosition', (success) => {
+    gpsSuccess = success
+    return 1
+  })
+  const requests = []
+  t.mock.method(globalThis, 'fetch', async (url) => {
+    requests.push(url)
+    return Response.json({ ac: [], now: Date.now() })
+  })
+  const target = document.createElement('div')
+  document.body.append(target)
+  const app = createApp(Dashboard)
+  app.mount(target)
+  try {
+    await flush()
+    assert.equal(requests.length, 0)
+    target.querySelector('.radar-panel__location button').click()
+    await flush()
+    target.querySelector('.test-location-apply').click()
+    await flush()
+    gpsSuccess({ coords: { latitude: 37.5665, longitude: 126.978, accuracy: 100 } })
+    await flush()
+    t.mock.timers.tick(5000)
+    await flush()
+    assert.equal(requests.length, 2)
+    assert.ok(requests.every((url) => url.includes('/point/35.180/129.076/')))
+  } finally {
+    app.unmount()
+    target.remove()
+    t.mock.timers.reset()
+  }
+})
+
+test('a permitted compass resumes after returning and keeps the posture hint while tilted', async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout', 'Date'], now: Date.UTC(2026, 9, 28) })
+  const originalOrientation = Object.getOwnPropertyDescriptor(window, 'DeviceOrientationEvent')
+  const originalTouchPoints = Object.getOwnPropertyDescriptor(navigator, 'maxTouchPoints')
+  let permissionRequests = 0
+  Object.defineProperty(window, 'DeviceOrientationEvent', {
+    configurable: true,
+    value: {
+      requestPermission: async () => {
+        permissionRequests += 1
+        return 'granted'
+      },
+    },
+  })
+  Object.defineProperty(navigator, 'maxTouchPoints', { configurable: true, value: 1 })
+  t.mock.method(globalThis, 'fetch', async () => Response.json({ ac: [], now: Date.now() }))
+  const orientation = (beta) => {
+    const event = new window.Event('deviceorientationabsolute')
+    Object.assign(event, { absolute: true, alpha: 270, beta, gamma: 0 })
+    window.dispatchEvent(event)
+  }
+  const target = document.createElement('div')
+  document.body.append(target)
+  const app = createApp(Dashboard)
+  app.mount(target)
+  try {
+    await flush()
+    target.querySelector('.compass-button').click()
+    await flush()
+    orientation(0)
+    await flush()
+    assert.match(target.querySelector('.radar-panel__direction').textContent, /나침반/)
+    Object.defineProperty(document, 'hidden', { configurable: true, value: true })
+    document.dispatchEvent(new window.Event('visibilitychange'))
+    Object.defineProperty(document, 'hidden', { configurable: true, value: false })
+    document.dispatchEvent(new window.Event('visibilitychange'))
+    orientation(0)
+    await flush()
+    assert.equal(permissionRequests, 1)
+    assert.match(target.querySelector('.radar-panel__direction').textContent, /나침반/)
+    for (let i = 0; i < 3; i += 1) {
+      orientation(85)
+      t.mock.timers.tick(3000)
+      await flush()
+    }
+    assert.match(target.querySelector('.radar-panel__sensor-message').textContent, /수평/)
+  } finally {
+    app.unmount()
+    target.remove()
+    if (originalOrientation)
+      Object.defineProperty(window, 'DeviceOrientationEvent', originalOrientation)
+    else delete window.DeviceOrientationEvent
+    if (originalTouchPoints) Object.defineProperty(navigator, 'maxTouchPoints', originalTouchPoints)
+    else delete navigator.maxTouchPoints
     t.mock.timers.reset()
   }
 })

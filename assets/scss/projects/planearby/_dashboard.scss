@@ -359,10 +359,41 @@
     text-decoration: underline;
     text-underline-offset: 4px;
   }
+  &__location {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 44px;
+    margin-top: 20px;
+    padding: 10px 14px;
+    border: 1px solid var(--accent);
+    border-radius: 3px;
+    color: var(--accent-text);
+    background: var(--accent-soft);
+    font-size: 13px;
+  }
 }
 .radar-panel {
   grid-area: radar;
   min-width: 0;
+  &__location {
+    @include flex-center;
+    flex-wrap: wrap;
+    gap: 7px;
+    margin-top: 14px;
+    color: var(--text-secondary);
+    font-size: 11px;
+    > button {
+      min-height: 44px;
+      padding: 8px;
+      border: 0;
+      color: var(--accent-text);
+      background: transparent;
+      font-size: inherit;
+      text-decoration: underline;
+      text-underline-offset: 4px;
+    }
+  }
   &__caption {
     margin-top: 25px;
     color: var(--text-muted);

@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@lucide/vue": "^1.61.0",
+    "leaflet": "^1.9.4",
     "vue": "^3.5.0"
   },
   "devDependencies": {
