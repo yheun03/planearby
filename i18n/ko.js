@@ -1,9 +1,10 @@
 import { projectConfig } from '../project.config.js'
 
 export default {
-  previewOnlyTitle: '예시 화면을 확인해 보세요',
-  previewOnlyText:
-    '현재 배포에서는 실시간 조회를 지원하지 않습니다. 예시 화면에서 가상 항공기 {count}개의 정보를 확인할 수 있어요.',
+  quotaTitle: '조회 토큰을 모두 사용했어요',
+  quotaExceeded:
+    'adsb.lol의 일일 조회 한도에 도달해 실시간 조회를 멈췄어요. 한도가 초기화된 후 다시 조회해 주세요.',
+  quotaConfirm: '확인',
   retrying: '자동 재연결 중',
   staleData: '오래된 수신 데이터입니다. 새 위치를 다시 확인하고 있어요.',
   airlineInferred: '호출부호로 매칭한 항공사입니다. 실제 운항 항공사와 다를 수 있습니다.',
@@ -92,7 +93,7 @@ export default {
   emptyTitle: '아직 발견한 항공기가 없어요',
   emptyText:
     '에어버스·보잉·봄바르디어 기종만 표시하며 GLEX와 헬기는 제외해요. 수신 범위와 데이터 지연에 따라 조회되지 않을 수 있어요.',
-  locatingText: '위치를 허용하면 근사 좌표가 이 앱의 중계 API와 공개 위치 API로 전달됩니다.',
+  locatingText: '위치를 허용하면 근사 좌표가 중계 서비스와 adsb.lol로 전달됩니다.',
   loadingTitle: '주변 항공기를 찾고 있어요',
   loadingText: '반경 {radius}km 이내에 수신된 항공기를 확인하고 있어요.',
   showPreview: '예시 화면 보기',

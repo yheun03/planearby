@@ -37,11 +37,11 @@ import {
   SEARCH_RADIUS_KM,
 } from '~/utils/geo.js'
 
-const previewOnly = import.meta.env?.VITE_PAGES_PREVIEW_ONLY === true
 const language = ref('ko')
 const theme = ref('dark')
 const systemDark = ref(false)
 const settingsDialog = ref(null)
+const quotaDialog = ref(null)
 const state = ref('idle')
 const source = ref('live')
 const flights = ref([])
@@ -77,8 +77,9 @@ let permissionStatus
 let colorScheme
 let permissionController
 let pendingRefreshGeneration = null
-let automaticScanPending = !previewOnly
+let automaticScanPending = true
 let retryAt = 0
+let quotaRetryAt = 0
 let failedPolls = 0
 let lastPollAt = -Infinity
 let resumeOnPageShow = false
@@ -167,7 +168,6 @@ const selectedBearing = computed(() => {
 })
 const statusLabel = computed(() => {
   if (source.value === 'preview') return t('sample')
-  if (previewOnly) return t('preview')
   if (active.value) return t(errorKey.value ? 'retrying' : 'live')
   if (state.value === 'error') return t('errorTitle')
   return t(lastUpdated.value ? 'lastResult' : 'ready')
@@ -175,11 +175,9 @@ const statusLabel = computed(() => {
 const locationText = computed(() =>
   source.value === 'preview'
     ? t('previewLocation')
-    : previewOnly
-      ? t('preview')
-      : location.value
-        ? t('currentLocation')
-        : t('waitingLocation'),
+    : location.value
+      ? t('currentLocation')
+      : t('waitingLocation'),
 )
 const updatedText = computed(() =>
   lastUpdated.value
@@ -201,14 +199,12 @@ const permissionLabel = computed(() =>
   ),
 )
 const emptyTitle = computed(() => {
-  if (previewOnly) return t('previewOnlyTitle')
   if (errorKey.value) return t(active.value ? 'retrying' : 'errorTitle')
   if (state.value === 'locating') return t('locating')
   if (state.value === 'tracking' && !lastUpdated.value) return t('loadingTitle')
   return t('emptyTitle')
 })
 const emptyText = computed(() => {
-  if (previewOnly) return t('previewOnlyText', { count: exampleFlights.length })
   if (errorKey.value) return t(errorKey.value)
   if (state.value === 'locating') return t('locatingText')
   if (state.value === 'tracking' && !lastUpdated.value) return t('loadingText')
@@ -320,6 +316,13 @@ async function refreshFlights(currentGeneration) {
   } catch (error) {
     if (generation !== currentGeneration || error.name === 'AbortError') return
     errorKey.value = error.uiKey || 'apiError'
+    if (error.uiKey === 'quotaExceeded') {
+      quotaRetryAt = Date.now() + error.retryMs
+      flights.value = []
+      finishSession('error')
+      showQuotaNotice()
+      return
+    }
     if (error.permanent) return finishSession('error')
     failedPolls += 1
     retryAt =
@@ -370,7 +373,13 @@ function resetRotationTimer() {
   clearInterval(rotationTimer)
   if (rotationPaused.value) return
   rotationTimer = setInterval(() => {
-    if (document.hidden || settingsDialog.value?.open || aircraft.value.length < 2) return
+    if (
+      document.hidden ||
+      settingsDialog.value?.open ||
+      quotaDialog.value?.open ||
+      aircraft.value.length < 2
+    )
+      return
     seenFlightIds.add(selectedFlight.value?.id)
     let next = aircraft.value.find((flight) => !seenFlightIds.has(flight.id))
     if (!next) {
@@ -473,8 +482,12 @@ async function enableCompass() {
 }
 
 async function startScan() {
-  if (previewOnly || active.value) return
+  if (active.value) return
   automaticScanPending = false
+  if (Date.now() < quotaRetryAt) {
+    showQuotaNotice()
+    return
+  }
   finishSession('locating')
   const currentGeneration = generation
   controller = new AbortController()
@@ -508,6 +521,11 @@ async function startScan() {
     errorKey.value = error.uiKey || 'apiError'
     finishSession('error')
   }
+}
+
+function showQuotaNotice() {
+  settingsDialog.value?.close()
+  if (!quotaDialog.value?.open) quotaDialog.value?.showModal()
 }
 
 function showPreview() {
@@ -637,7 +655,7 @@ onMounted(async () => {
   window.addEventListener('pagehide', stopWhenAway)
   window.addEventListener('pageshow', handlePageShow)
   startAutomaticScan()
-  if (!previewOnly && navigator.permissions) {
+  if (navigator.permissions) {
     try {
       permissionStatus = await navigator.permissions.query({ name: 'geolocation' })
       syncLocationPermission()
@@ -698,7 +716,7 @@ onUnmounted(() => {
       <span class="header__status">{{ statusLabel }}</span>
     </div>
     <div class="scan-controls">
-      <span v-if="!previewOnly">{{ t('simpleScanHint') }}</span>
+      <span>{{ t('simpleScanHint') }}</span>
       <button
         v-if="active"
         class="scan-button"
@@ -713,13 +731,13 @@ onUnmounted(() => {
       <button
         v-else
         class="scan-button"
-        @click="previewOnly ? showPreview() : startScan()"
+        @click="startScan"
       >
         <ScanLine
           aria-hidden="true"
           :size="15"
         />
-        {{ previewOnly ? t('showPreview') : state === 'idle' ? t('start') : t('restart') }}
+        {{ state === 'idle' ? t('start') : t('restart') }}
       </button>
     </div>
   </header>
@@ -930,7 +948,7 @@ onUnmounted(() => {
           <h3>{{ emptyTitle }}</h3>
           <p>{{ emptyText }}</p>
           <button
-            v-if="previewOnly || errorKey"
+            v-if="errorKey"
             class="fids-empty__preview"
             @click="showPreview"
           >
@@ -1309,10 +1327,7 @@ onUnmounted(() => {
           {{ t(compassMessage) }}
         </p>
       </fieldset>
-      <div
-        v-if="!previewOnly"
-        class="setting-group setting-group--location"
-      >
+      <div class="setting-group setting-group--location">
         <div class="setting-group__title">
           <h3>
             <MapPin
@@ -1359,6 +1374,32 @@ onUnmounted(() => {
         />
         {{ t('saved') }}
       </div>
+    </div>
+  </dialog>
+  <dialog
+    ref="quotaDialog"
+    class="quota-dialog"
+    role="alertdialog"
+    aria-labelledby="quota-title"
+    aria-describedby="quota-description"
+  >
+    <div class="quota-dialog__content">
+      <span class="quota-dialog__icon">
+        <ScanLine
+          aria-hidden="true"
+          :size="28"
+        />
+      </span>
+      <p class="quota-dialog__source">adsb.lol</p>
+      <h2 id="quota-title">{{ t('quotaTitle') }}</h2>
+      <p id="quota-description">{{ t('quotaExceeded') }}</p>
+      <button
+        class="quota-dialog__confirm"
+        autofocus
+        @click="quotaDialog.close()"
+      >
+        {{ t('quotaConfirm') }}
+      </button>
     </div>
   </dialog>
 </template>

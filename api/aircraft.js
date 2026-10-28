@@ -2,6 +2,13 @@ import { SEARCH_RADIUS_NM } from '../utils/geo.js'
 
 export default async function aircraftApi(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
+  const limitHeaders = [
+    'Retry-After',
+    'X-RateLimit-Limit',
+    'X-RateLimit-Remaining',
+    'X-RateLimit-Reset',
+  ]
+  res.setHeader('Access-Control-Expose-Headers', limitHeaders.join(', '))
   res.setHeader('Cache-Control', 'no-store')
   const send = (status, body) => {
     res.statusCode = status
@@ -32,9 +39,11 @@ export default async function aircraftApi(req, res) {
       `https://api.adsb.lol/v2/point/${lat.toFixed(3)}/${lon.toFixed(3)}/${SEARCH_RADIUS_NM}`,
       { signal: AbortSignal.timeout(10000), headers: { Accept: 'application/json' } },
     )
+    limitHeaders.forEach((name) => {
+      const value = response.headers.get(name)
+      if (value !== null) res.setHeader(name, value)
+    })
     if (!response.ok) {
-      const retryAfter = response.headers.get('retry-after')
-      if (retryAfter) res.setHeader('Retry-After', retryAfter)
       return send(response.status, { error: 'upstream_error' })
     }
     const body = await response.json()

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { readFile, writeFile, mkdir, rm } from 'node:fs/promises'
 import { transformWithEsbuild } from 'vite'
 import { createFlightClient } from '../utils/flights.js'
-import { SEARCH_RADIUS_KM } from '../utils/geo.js'
+import { SEARCH_RADIUS_KM, SEARCH_RADIUS_NM } from '../utils/geo.js'
 
 const center = { lat: 37.5665, lon: 126.978 }
 const aircraft = {
@@ -22,17 +22,19 @@ const route = {
 }
 const positions = (ac, now = Date.now()) => Response.json({ ac, now })
 
-test('development uses its local relay even with a deployed API URL in the environment', async () => {
+test('development, custom relays and static builds select the correct endpoint', async () => {
   const source = await readFile(new URL('../utils/flights.js', import.meta.url), 'utf8')
   await mkdir(new URL('../.data/', import.meta.url), { recursive: true })
-  for (const development of [true, false]) {
-    const file = new URL(`../.data/flights-env-${development}.mjs`, import.meta.url)
+  for (const [index, environment] of [
+    { DEV: true, VITE_AIRCRAFT_API_URL: 'https://example.com/api/aircraft' },
+    { DEV: false, VITE_AIRCRAFT_API_URL: ' https://example.com/api/aircraft ' },
+    { DEV: false },
+    { DEV: false, VITE_AIRCRAFT_API_URL: ' ' },
+  ].entries()) {
+    const file = new URL(`../.data/flights-env-${index}.mjs`, import.meta.url)
     const { code } = await transformWithEsbuild(source, 'flights.js', {
       define: {
-        'import.meta.env': JSON.stringify({
-          DEV: development,
-          VITE_AIRCRAFT_API_URL: 'https://example.com/api/aircraft',
-        }),
+        'import.meta.env': JSON.stringify(environment),
       },
     })
     await writeFile(
@@ -51,7 +53,11 @@ test('development uses its local relay even with a deployed API URL in the envir
       assert.equal((await client.nearby(center)).length, 1)
       assert.equal(
         requested,
-        `${development ? '' : 'https://example.com'}/api/aircraft?lat=37.566&lon=126.978`,
+        environment.DEV
+          ? '/api/aircraft?lat=37.566&lon=126.978'
+          : environment.VITE_AIRCRAFT_API_URL?.trim()
+            ? 'https://example.com/api/aircraft?lat=37.566&lon=126.978'
+            : `https://proxy.cors.dev/https://api.adsb.lol/v2/point/37.566/126.978/${SEARCH_RADIUS_NM}`,
       )
     } finally {
       await rm(file, { force: true })
@@ -59,7 +65,7 @@ test('development uses its local relay even with a deployed API URL in the envir
   }
 })
 
-test('positions use the app API without credentials and filter unsupported or invalid observations', async () => {
+test('static positions use adsb.lol through CORS without credentials and filter invalid observations', async () => {
   const calls = []
   const client = createFlightClient({
     fetchImpl: async (url, options) => {
@@ -80,8 +86,12 @@ test('positions use the app API without credentials and filter unsupported or in
   assert.equal(flights[0].callsign, 'KAL1428')
   assert.equal(flights[0].airlineCode, 'KE')
   assert.equal(flights[0].track, 359)
-  assert.ok(calls[0].url.startsWith('/api/aircraft?lat=37.566&lon=126.978'))
+  assert.equal(
+    calls[0].url,
+    `https://proxy.cors.dev/https://api.adsb.lol/v2/point/37.566/126.978/${SEARCH_RADIUS_NM}`,
+  )
   assert.equal(calls[0].options.credentials, 'omit')
+  assert.equal(calls[0].options.referrerPolicy, 'no-referrer')
   assert.equal(calls[0].options.headers, undefined)
 })
 
@@ -168,7 +178,7 @@ test('429 honors Retry-After and route throttling does not stop positions', asyn
   const client = createFlightClient({
     now: () => now,
     fetchImpl: async (url) => {
-      if (url.startsWith('/api/aircraft')) return positions([aircraft], now)
+      if (url.startsWith('https://proxy.cors.dev/')) return positions([aircraft], now)
       routeCalls += 1
       return new Response(null, { status: 429, headers: { 'Retry-After': '60' } })
     },
@@ -184,6 +194,41 @@ test('429 honors Retry-After and route throttling does not stop positions', asyn
     fetchImpl: async () => new Response(null, { status: 429, headers: { 'Retry-After': '60' } }),
   })
   await assert.rejects(blocked.nearby(center), (error) => error.retryMs === 60000)
+})
+
+test('daily quota exhaustion is distinct from short throttling and network failures', async () => {
+  const policies = '4;w=1, 60;w=60, 500;w=86400'
+  for (const [activeLimit, remaining, reset, exhausted] of [
+    [500, 0, 120, true],
+    [500, 1, 120, false],
+    [4, 0, 1, false],
+    [60, 0, 60, false],
+  ]) {
+    const client = createFlightClient({
+      fetchImpl: async () =>
+        new Response(null, {
+          status: 429,
+          headers: {
+            'X-RateLimit-Limit': `${activeLimit}, ${policies}`,
+            'X-RateLimit-Remaining': String(remaining),
+            'X-RateLimit-Reset': String(reset),
+          },
+        }),
+    })
+    await assert.rejects(
+      client.nearby(center),
+      (error) =>
+        error.uiKey === (exhausted ? 'quotaExceeded' : 'rateLimit') &&
+        error.permanent === exhausted &&
+        error.retryMs === Math.max(15000, reset * 1000),
+    )
+  }
+  const networkFailure = createFlightClient({
+    fetchImpl: async () => {
+      throw new TypeError('Failed to fetch')
+    },
+  })
+  await assert.rejects(networkFailure.nearby(center), { name: 'TypeError' })
 })
 
 test('stopping cancels a pending position request', async () => {

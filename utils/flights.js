@@ -1,6 +1,6 @@
 import { resolveAirline } from './airlines.js'
 import { isSupportedAircraft } from './aircraft.js'
-import { distanceKm, normalizeDegrees, SEARCH_RADIUS_KM } from './geo.js'
+import { distanceKm, normalizeDegrees, SEARCH_RADIUS_KM, SEARCH_RADIUS_NM } from './geo.js'
 
 const callsignCode = (value) =>
   String(value || '')
@@ -14,18 +14,17 @@ export function createFlightClient({
   now = Date.now,
   positionEndpoint = import.meta.env?.DEV
     ? '/api/aircraft'
-    : import.meta.env?.VITE_AIRCRAFT_API_URL || '/api/aircraft',
+    : import.meta.env?.VITE_AIRCRAFT_API_URL?.trim() || '',
 } = {}) {
   const routes = new Map()
   const pendingRoutes = new Map()
   let routeRetryAt = 0
 
-  async function request(url, signal, headers) {
+  async function request(url, signal) {
     const response = await fetchImpl(url, {
       signal: AbortSignal.any([signal, AbortSignal.timeout(10000)].filter(Boolean)),
       credentials: 'omit',
       referrerPolicy: 'no-referrer',
-      headers,
     })
     if (response.status === 404) return null
     if (!response.ok) {
@@ -33,14 +32,31 @@ export function createFlightClient({
       const seconds = Number(retryAfter)
       const delay =
         retryAfter && Number.isFinite(seconds) ? seconds * 1000 : Date.parse(retryAfter) - now()
+      const resetMs = Number(response.headers.get('x-ratelimit-reset')) * 1000
+      // Envoy lists the active quota first, followed by each policy's time window.
+      const policies = (response.headers.get('x-ratelimit-limit') || '').split(',')
+      const activeLimit = Number(policies[0])
+      const dailyQuota = policies.slice(1).some((policy) => {
+        const match = /^\s*(\d+)\s*;\s*w=(\d+)(?:\s*;|\s*$)/.exec(policy)
+        return match && Number(match[1]) === activeLimit && Number(match[2]) >= 86400
+      })
+      const remaining = response.headers.get('x-ratelimit-remaining')
+      const quotaExhausted =
+        response.status === 429 && dailyQuota && (remaining === null || Number(remaining) === 0)
       throw {
-        uiKey:
-          response.status === 429
+        uiKey: quotaExhausted
+          ? 'quotaExceeded'
+          : response.status === 429
             ? 'rateLimit'
             : response.status === 403
               ? 'apiForbidden'
               : 'apiError',
-        retryMs: Math.max(response.status === 403 ? 300000 : 15000, delay || 0),
+        retryMs: Math.max(
+          response.status === 403 ? 300000 : 15000,
+          delay || 0,
+          response.status === 429 ? resetMs || (quotaExhausted ? 86400000 : 0) : 0,
+        ),
+        permanent: quotaExhausted,
       }
     }
     return response.json()
@@ -49,7 +65,11 @@ export function createFlightClient({
   return {
     async nearby(center, signal) {
       const query = new URLSearchParams({ lat: center.lat.toFixed(3), lon: center.lon.toFixed(3) })
-      const body = await request(`${positionEndpoint}?${query}`, signal)
+      // Static hosts cannot run /api/aircraft. This keyless relay adds browser CORS headers.
+      const url = positionEndpoint
+        ? `${positionEndpoint}?${query}`
+        : `https://proxy.cors.dev/https://api.adsb.lol/v2/point/${query.get('lat')}/${query.get('lon')}/${SEARCH_RADIUS_NM}`
+      const body = await request(url, signal)
       if (body === null) throw { uiKey: 'apiNotConfigured', permanent: true }
       if (!Array.isArray(body?.ac)) throw { uiKey: 'apiError' }
       const sourceTime = Number(body.now)

@@ -54,11 +54,24 @@ test('the proxy preserves upstream limits and reports malformed or failed respon
   const upstream = t.mock.method(
     globalThis,
     'fetch',
-    async () => new Response(null, { status: 429, headers: { 'Retry-After': '60' } }),
+    async () =>
+      new Response(null, {
+        status: 429,
+        headers: {
+          'Retry-After': '60',
+          'X-RateLimit-Limit': '500, 4;w=1, 60;w=60, 500;w=86400',
+          'X-RateLimit-Remaining': '0',
+          'X-RateLimit-Reset': '3600',
+        },
+      }),
   )
   const limited = await call('/api/aircraft?lat=0&lon=0')
   assert.equal(limited.statusCode, 429)
   assert.equal(limited.headers['Retry-After'], '60')
+  assert.equal(limited.headers['X-RateLimit-Limit'], '500, 4;w=1, 60;w=60, 500;w=86400')
+  assert.equal(limited.headers['X-RateLimit-Remaining'], '0')
+  assert.equal(limited.headers['X-RateLimit-Reset'], '3600')
+  assert.match(limited.headers['Access-Control-Expose-Headers'], /X-RateLimit-Remaining/)
   upstream.mock.mockImplementation(async () => new Response(null, { status: 403 }))
   assert.equal((await call('/api/aircraft?lat=0&lon=0')).statusCode, 403)
   upstream.mock.mockImplementation(async () => Response.json({ error: 'invalid' }))

@@ -37,11 +37,6 @@ export default defineConfig(({ mode }) => {
 
   return {
     base,
-    define: {
-      'import.meta.env.VITE_PAGES_PREVIEW_ONLY': JSON.stringify(
-        mode === 'pages' && !env.VITE_AIRCRAFT_API_URL?.trim(),
-      ),
-    },
     resolve: { alias: { '~': fileURLToPath(new URL('.', import.meta.url)) } },
     plugins: [
       vue(),

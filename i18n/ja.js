@@ -1,7 +1,8 @@
 export default {
-  previewOnlyTitle: 'サンプル画面をご覧ください',
-  previewOnlyText:
-    'この公開版ではリアルタイム検索を利用できません。サンプル画面で架空の航空機{count}機の情報を確認できます。',
+  quotaTitle: '観測トークンを使い切りました',
+  quotaExceeded:
+    'adsb.lolの1日のリクエスト上限に達したため、リアルタイム観測を停止しました。上限がリセットされてから、もう一度お試しください。',
+  quotaConfirm: '確認',
   retrying: '自動再接続中',
   staleData: '受信データが古いため、新しい位置情報を確認しています。',
   airlineInferred: 'コールサインから推定した航空会社です。実際の運航会社と異なる場合があります。',
@@ -90,7 +91,7 @@ export default {
   emptyTitle: 'まだ飛行機を受信していません',
   emptyText:
     'エアバス・ボーイング・ボンバルディアの機種のみ表示し、GLEXとヘリは除外します。受信範囲や遅延により表示されない場合があります。',
-  locatingText: '位置情報を許可すると、概算の座標をこのアプリの中継APIと公開位置APIに送信します。',
+  locatingText: '位置情報を許可すると、概算の座標を中継サービスとadsb.lolに送信します。',
   loadingTitle: '近くの飛行機を探しています',
   loadingText: '半径{radius}km以内の受信データを確認しています。',
   showPreview: 'サンプル画面を見る',

@@ -1,7 +1,8 @@
 export default {
-  previewOnlyTitle: 'Explore the example dashboard',
-  previewOnlyText:
-    'Live tracking is not connected for this deployment. View {count} fictional aircraft in the example dashboard.',
+  quotaTitle: 'Your scan tokens are used up',
+  quotaExceeded:
+    'The adsb.lol daily request allowance has been used up, so live scanning has stopped. Please scan again after the allowance resets.',
+  quotaConfirm: 'OK',
   retrying: 'Reconnecting',
   staleData: 'The received data is stale. Checking for fresh positions.',
   airlineInferred: 'Matched from the callsign; the actual operator may differ.',
@@ -91,8 +92,7 @@ export default {
   emptyTitle: 'No aircraft received just yet',
   emptyText:
     'Only Airbus, Boeing and Bombardier types are shown. GLEX and helicopters are excluded. Receiver coverage and data delays affect results.',
-  locatingText:
-    'Allow location to send approximate coordinates to this app’s relay API and the public position API.',
+  locatingText: 'Allow location to send approximate coordinates to the relay service and adsb.lol.',
   loadingTitle: 'Looking for nearby aircraft',
   loadingText: 'Checking received aircraft within a {radius} km radius.',
   showPreview: 'View example dashboard',

@@ -1,6 +1,6 @@
 # 사용하는 API와 데이터셋
 
-화면은 정적 Vue 앱이며 위치 조회에는 이 프로젝트의 서버 중계가 필요합니다. 유료 데이터 API·API 키·30초 세션 제한을 사용하지 않습니다. GitHub Pages의 실시간 조회에는 별도 함수 호스팅의 주소가 필요합니다. 주소가 없어도 빌드·배포할 수 있으며, 예시 화면 보기 버튼으로 가상 데이터 12개를 표시합니다. 이 배포에서는 위치 권한이나 데이터 API를 자동 요청하지 않습니다.
+화면은 정적 Vue 앱입니다. GitHub Pages에서는 무료 공개 `cors.dev` 중계로 `adsb.lol`을 조회하므로 별도 서버 배포나 환경 변수 없이 실시간 조회가 가능합니다. API 키·계정·결제 정보·30초 세션 제한은 사용하지 않습니다. 원본 데이터 API의 일일 호출 한도는 적용됩니다.
 
 ## 브라우저 Geolocation API
 
@@ -18,17 +18,29 @@
 
 공식 안내: https://www.adsb.lol/docs/open-data/api/
 
-## 앱의 위치 중계 — CORS 처리
+## 정적 배포 — 무료 CORS 중계
+
+`GET https://proxy.cors.dev/https://api.adsb.lol/v2/point/{latitude}/{longitude}/{radius_nm}`
+
+adsb.lol 응답에는 브라우저 CORS 허용 헤더가 없어 공개 중계가 해당 헤더를 추가합니다. GitHub Pages를 포함한 정적 빌드는 이 주소를 기본으로 사용합니다. 쿠키·API 키·인증 정보·referrer를 보내지 않고, 캐싱이나 유료 기능을 요청하지 않습니다. 응답은 `no-store`이며 HTTP 오류와 `Retry-After`, `X-RateLimit-*` 헤더가 브라우저에 전달됩니다. 30초보다 오래된 수신 데이터는 표시하지 않습니다.
+
+cors.dev 공식 문서는 무료 GET/HEAD에 IP당 분당 600회, 일일·월간 한도 없음으로 안내합니다. 이는 **중계 서비스 한도**이며 adsb.lol의 한도를 없애지 않습니다. 2026-10-28 실제 응답에서 `X-RateLimit-Limit: 4, 4;w=1, 60;w=60, 500;w=86400`과 GitHub Pages origin에 대한 CORS 허용을 확인했습니다. 원본의 IP별 한도는 중계의 다른 사용자들과 공유될 수 있습니다. 무료 서비스의 운영·접근 정책과 가용성은 보장할 수 없습니다.
+
+공식 중계 문서: https://cors.dev/docs
+
+## 개발·선택적 자체 중계
 
 `GET /api/aircraft?lat={latitude}&lon={longitude}`
 
-adsb.lol은 브라우저 CORS를 지원하지 않으므로 `api/aircraft.js`가 고정된 adsb.lol URL만 요청합니다. 좌표 범위를 검증하고 반경은 서버의 설정값으로 제한합니다. 호출자가 임의 URL이나 반경을 지정할 수 없습니다. API 키·로그인·결제 정보를 보내지 않으며 응답은 `no-store`입니다. 30초보다 오래된 수신 데이터는 클라이언트에서 제외합니다.
+`api/aircraft.js`는 고정된 adsb.lol URL만 요청합니다. 좌표 범위를 검증하고 반경은 서버의 설정값으로 제한합니다. 호출자가 임의 URL이나 반경을 지정할 수 없습니다. 응답은 `no-store`이며 원본의 `Retry-After`, `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`을 보존하고 CORS로 노출합니다.
 
-개발·미리보기에서는 Vite가 같은 함수를 연결합니다. 개발 모드는 배포용 주소와 관계없이 로컬 `/api/aircraft`를 사용합니다. Vercel에서는 `api/aircraft.js`를 Node 함수로 실행할 수 있습니다. GitHub Pages는 이 함수를 실행할 수 없으므로 별도 함수 배포 후 `.env.pages.local`의 `VITE_AIRCRAFT_API_URL`에 실제 공개 API 주소를 지정해야 합니다. 예시 문구나 GitHub Pages 화면 주소를 값으로 넣지 않습니다. 키가 아니며 클라이언트 빌드에 포함됩니다. 함수 호스팅에는 제공자의 무료 플랜 한도가 적용됩니다.
+Vite는 개발·미리보기에서 같은 함수를 제공합니다. 개발 모드는 배포용 주소와 관계없이 로컬 `/api/aircraft`를 사용합니다. 정적 빌드는 기본으로 공개 중계를 사용하고, 자체 함수를 배포한 경우에만 `VITE_AIRCRAFT_API_URL`로 주소를 덮어쓸 수 있습니다. Pages 전용 설정은 `.env.pages.local`에 둡니다. 예시 문구나 GitHub Pages 화면 주소를 값으로 넣지 않습니다. API 주소는 공개 값이며 비밀 키가 아닙니다. 자체 함수 호스팅에는 해당 서비스의 무료 플랜 한도가 적용됩니다.
 
-근사 좌표(소수점 셋째 자리)가 중계 호스팅과 원본 API에 전달됩니다. 공항 노선 요청은 이 중계를 거치지 않습니다. 원본은 부하에 따라 제한이 달라지며 429의 `Retry-After`를 따릅니다. 403은 별도 안내 후 5분 대기합니다. 정상 위치 요청은 탭당 분당 최대 12회입니다. 중계 서버의 여러 사용자는 원본에서 같은 IP로 보일 수 있습니다. 무제한·무중단 접근을 보장하지 않습니다.
+근사 좌표(소수점 셋째 자리)가 공개 또는 자체 중계와 원본 API에 전달됩니다. 공항 노선 요청은 이 중계를 거치지 않습니다. 정상 위치 요청은 탭당 분당 최대 12회입니다. 일시적 429는 `Retry-After`와 `X-RateLimit-Reset`을 따르고 403은 5분 이상 대기합니다.
 
-기존 Jina Reader 공개 중계는 일부 환경에서 403이 발생해 제거했습니다. 다른 제3자 공개 프록시로 자동 전환하지 않습니다.
+429의 `X-RateLimit-Limit` 첫 값은 활성 한도입니다. 뒤의 정책 중 같은 한도의 `w`가 86400초 이상이고 잔여량이 0이면 일일 한도 소진으로 처리합니다. 전체 화면 모달로 토큰 소진을 알리고 자동 조회와 진행 중인 요청을 중지합니다. 같은 페이지에서 초기화 전 재시작하면 추가 요청 없이 모달을 다시 표시합니다. 초기화 헤더가 없을 때는 보수적으로 24시간 대기합니다. 헤더가 없는 429는 소진 여부를 확인할 수 없어 일시 제한으로 처리합니다. 다른 프록시나 데이터 제공자로 자동 전환하지 않습니다.
+
+한도 헤더 형식: https://www.envoyproxy.io/docs/envoy/latest/api-v3/extensions/filters/http/ratelimit/v3/rate_limit.proto
 
 ## adsbdb — 출발·도착 공항
 

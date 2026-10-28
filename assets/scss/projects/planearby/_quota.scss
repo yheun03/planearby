@@ -1,0 +1,74 @@
+@use '../../abstract' as *;
+
+html:has(.quota-dialog[open]) {
+  overflow: hidden;
+}
+
+.quota-dialog {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  padding: 24px;
+  border: 0;
+  color: var(--text);
+  background: var(--page);
+  &[open] {
+    @include flex-center;
+  }
+  &::backdrop {
+    background: #000b;
+  }
+  &__content {
+    width: 100%;
+    max-width: 420px;
+    margin: auto;
+    text-align: center;
+  }
+  &__icon {
+    @include flex-center;
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 24px;
+    border-radius: 4px;
+    color: var(--accent-text);
+    background: var(--accent-soft);
+  }
+  &__source {
+    margin-bottom: 10px;
+    color: var(--text-muted);
+    font-family: $font-mono;
+    font-size: 12px;
+  }
+  h2 {
+    font-size: clamp(24px, 5vw, 32px);
+    font-weight: 650;
+    letter-spacing: -1px;
+    word-break: keep-all;
+  }
+  #quota-description {
+    margin-top: 16px;
+    color: var(--text-secondary);
+    font-size: 14px;
+    line-height: 1.9;
+    word-break: keep-all;
+  }
+  &__confirm {
+    width: 100%;
+    min-height: 48px;
+    margin-top: 32px;
+    border: 1px solid var(--accent);
+    border-radius: 3px;
+    color: var(--page);
+    background: var(--accent);
+    font-size: 14px;
+    font-weight: 600;
+    &:hover {
+      color: var(--accent-text);
+      background: var(--accent-soft);
+    }
+  }
+}

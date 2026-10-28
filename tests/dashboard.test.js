@@ -3,7 +3,6 @@ import assert from 'node:assert/strict'
 import { readFile, writeFile, mkdir, rm } from 'node:fs/promises'
 import { parse, compileScript } from '@vue/compiler-sfc'
 import { Window } from 'happy-dom'
-import { transformWithEsbuild } from 'vite'
 
 const browser = new Window({ url: 'http://localhost:5173' })
 for (const key of [
@@ -39,7 +38,6 @@ Object.defineProperty(navigator, 'permissions', {
 Object.defineProperty(window, 'isSecureContext', { configurable: true, value: true })
 const { createApp, nextTick } = await import('vue')
 const file = new URL('../.data/dashboard-test.mjs', import.meta.url)
-const previewFile = new URL('../.data/dashboard-preview-test.mjs', import.meta.url)
 const root = new URL('../', import.meta.url)
 const { descriptor } = parse(await readFile(new URL('../pages/index.vue', import.meta.url), 'utf8'))
 let compiled = compileScript(descriptor, { id: 'dashboard-test', inlineTemplate: true }).content
@@ -56,14 +54,8 @@ compiled = compiled
 await mkdir(new URL('../.data/', import.meta.url), { recursive: true })
 await writeFile(file, `import { h as testH } from 'vue'\n${compiled}`)
 const { default: Dashboard } = await import(file.href)
-const previewCompiled = await transformWithEsbuild(compiled, 'dashboard-preview.js', {
-  define: { 'import.meta.env': JSON.stringify({ VITE_PAGES_PREVIEW_ONLY: true }) },
-})
-await writeFile(previewFile, `import { h as testH } from 'vue'\n${previewCompiled.code}`)
-const { default: PreviewDashboard } = await import(previewFile.href)
 after(async () => {
   await rm(file, { force: true })
-  await rm(previewFile, { force: true })
   await browser.happyDOM.abort()
 })
 
@@ -82,7 +74,7 @@ test('the dashboard keeps polling past 30 seconds and a manual stop cancels furt
   let positions = 0
   let signal
   globalThis.fetch = async (url, options) => {
-    if (url.startsWith('/api/aircraft')) {
+    if (url.startsWith('https://proxy.cors.dev/')) {
       positions += 1
       signal = options.signal
       return positionResponse()
@@ -134,7 +126,7 @@ test('a provider limit keeps automatic polling active and waits before trying ag
   t.mock.timers.enable({ apis: ['setInterval', 'setTimeout', 'Date'], now: Date.UTC(2026, 9, 27) })
   let positions = 0
   globalThis.fetch = async (url) => {
-    if (!url.startsWith('/api/aircraft')) return new Response(null, { status: 404 })
+    if (!url.startsWith('https://proxy.cors.dev/')) return new Response(null, { status: 404 })
     positions += 1
     return positions === 1
       ? new Response(null, { status: 429, headers: { 'Retry-After': '15' } })
@@ -147,6 +139,7 @@ test('a provider limit keeps automatic polling active and waits before trying ag
   try {
     await flush()
     assert.match(target.querySelector('.header__status').textContent, /재연결/)
+    assert.equal(target.querySelector('.quota-dialog').open, false)
     for (let i = 0; i < 2; i += 1) {
       t.mock.timers.tick(5000)
       await flush()
@@ -193,28 +186,28 @@ test('an unconfigured static API stops polling and explains the required connect
   }
 })
 
-test('Pages without a relay offers twelve examples on demand without location or API requests', async (t) => {
+test('a static build starts live scanning and offers fictional examples only after an error', async (t) => {
   t.mock.timers.enable({ apis: ['setInterval', 'setTimeout', 'Date'], now: Date.UTC(2026, 9, 27) })
   const locationRequest = t.mock.method(navigator.geolocation, 'watchPosition')
   let requests = 0
   globalThis.fetch = async () => {
     requests += 1
-    throw new Error('The static example dashboard must not make API requests')
+    return new Response(null, { status: 404 })
   }
   const target = document.createElement('div')
   document.body.append(target)
-  const app = createApp(PreviewDashboard)
+  const app = createApp(Dashboard)
   app.mount(target)
   try {
     await flush()
-    assert.match(target.querySelector('.fids-empty').textContent, /가상 항공기 12개/)
+    assert.match(target.querySelector('.fids-empty').textContent, /중계 API가 연결되지/)
     assert.equal(target.querySelectorAll('.radar-aircraft').length, 0)
-    assert.match(target.querySelector('.scan-button').textContent, /예시 화면 보기/)
-    assert.equal(target.querySelector('.setting-group--location'), null)
+    assert.match(target.querySelector('.scan-button').textContent, /다시 조회/)
+    assert.ok(target.querySelector('.setting-group--location'))
     t.mock.timers.tick(30000)
     await flush()
-    assert.equal(locationRequest.mock.callCount(), 0)
-    assert.equal(requests, 0)
+    assert.equal(locationRequest.mock.callCount(), 1)
+    assert.equal(requests, 1)
 
     target.querySelector('.fids-empty__preview').click()
     await flush()
@@ -224,8 +217,70 @@ test('Pages without a relay offers twelve examples on demand without location or
     t.mock.timers.tick(10000)
     await flush()
     assert.notEqual(target.querySelector('.split-flap--callsign').textContent, first)
-    assert.equal(requests, 0)
-    assert.equal(locationRequest.mock.callCount(), 0)
+    assert.equal(requests, 1)
+    assert.equal(locationRequest.mock.callCount(), 1)
+  } finally {
+    app.unmount()
+    target.remove()
+    t.mock.timers.reset()
+  }
+})
+
+test('daily exhaustion opens the full-screen dialog and stops requests until the reset', async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout', 'Date'], now: Date.UTC(2026, 9, 27) })
+  let positions = 0
+  let signal
+  const locationRequest = t.mock.method(navigator.geolocation, 'watchPosition')
+  globalThis.fetch = async (url, options) => {
+    if (!url.startsWith('https://proxy.cors.dev/')) return new Response(null, { status: 404 })
+    positions += 1
+    signal = options.signal
+    return positions === 2
+      ? new Response(null, {
+          status: 429,
+          headers: {
+            'X-RateLimit-Limit': '500, 4;w=1, 60;w=60, 500;w=86400',
+            'X-RateLimit-Remaining': '0',
+            'X-RateLimit-Reset': '3600',
+          },
+        })
+      : positionResponse()
+  }
+  const target = document.createElement('div')
+  document.body.append(target)
+  const app = createApp(Dashboard)
+  app.mount(target)
+  try {
+    await flush()
+    assert.equal(positions, 1)
+    target.querySelector('.settings-fab').click()
+    assert.equal(target.querySelector('.settings-dialog').open, true)
+    t.mock.timers.tick(5000)
+    await flush()
+    const dialog = target.querySelector('.quota-dialog')
+    assert.equal(dialog.open, true)
+    assert.equal(target.querySelector('.settings-dialog').open, false)
+    assert.match(dialog.textContent, /조회 토큰을 모두 사용/)
+    assert.match(dialog.textContent, /일일 조회 한도/)
+    assert.equal(target.querySelectorAll('.radar-aircraft').length, 0)
+    assert.equal(signal.aborted, true)
+    t.mock.timers.tick(60000)
+    await flush()
+    assert.equal(positions, 2)
+    target.querySelector('.quota-dialog__confirm').click()
+    assert.equal(dialog.open, false)
+    target.querySelector('.scan-button').click()
+    await flush()
+    assert.equal(dialog.open, true)
+    assert.equal(positions, 2)
+    assert.equal(locationRequest.mock.callCount(), 1)
+    target.querySelector('.quota-dialog__confirm').click()
+    t.mock.timers.tick(3600000)
+    target.querySelector('.scan-button').click()
+    await flush()
+    assert.equal(positions, 3)
+    assert.equal(locationRequest.mock.callCount(), 2)
+    assert.equal(dialog.open, false)
   } finally {
     app.unmount()
     target.remove()
