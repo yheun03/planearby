@@ -14,6 +14,9 @@ export default {
   guideQuestion4: 'Is my location stored?',
   guideAnswer4:
     'Coordinates are used in browser memory only. Approximate coordinates go to the relay and adsb.lol when scanning, and address queries go to Photon. The app does not save your location.',
+  guideQuestion5: 'Can I use my current location and phone compass together?',
+  guideAnswer5:
+    'On mobile, the location and compass scan button requests both features together. In Settings, location and compass remain separate, and manual location or direction can replace either permission.',
 
   addressSearch: 'Search address',
   addressPlaceholder: 'Enter an address or place',
@@ -36,6 +39,7 @@ export default {
   addressRoadResult: 'Street location · check the building number',
   addressApproximate: 'Only the street was found. Adjust the pin to the building before scanning.',
   useCurrentLocation: 'Scan at my current location',
+  useLocationAndCompass: 'Scan with location and compass',
   locationChoiceHint: 'Use your current location or choose a search location on the map.',
   locationPickerTitle: 'Choose a search location',
   locationPickerHint:
@@ -160,7 +164,7 @@ export default {
   apiForbidden: 'The data provider refused this request (403). We will retry in five minutes.',
   apiNotConfigured: 'The aircraft relay API is not connected. Check the deployed API URL setting.',
   rateLimit: 'The public API is limiting requests. We will retry automatically.',
-  settingsIntro: 'Set your theme, language and facing direction.',
+  settingsIntro: 'Set your theme, language, current location and facing direction separately.',
   close: 'Close settings',
   appearance: 'Appearance',
   appearanceHint: 'Choose a display theme',

@@ -16,6 +16,9 @@ export default {
   guideQuestion4: '내 위치가 저장되나요?',
   guideAnswer4:
     '위치 좌표는 브라우저 메모리에서만 사용합니다. 조회 시 근사 좌표는 중계 서비스와 adsb.lol에 전달되며, 주소 검색어는 Photon에 전달됩니다. 앱은 위치를 별도로 저장하지 않습니다.',
+  guideQuestion5: '현재 위치와 휴대폰 나침반을 함께 사용할 수 있나요?',
+  guideAnswer5:
+    '모바일 레이더의 현재 위치·나침반 조회 버튼으로 두 기능을 함께 요청할 수 있습니다. 설정에서는 현재 위치와 나침반을 각각 사용할 수 있으며, 허용하지 않은 기능은 수동 위치나 수동 방향으로 대체할 수 있습니다.',
 
   addressSearch: '주소 검색',
   addressPlaceholder: '주소 또는 장소를 입력하세요',
@@ -39,6 +42,7 @@ export default {
   addressApproximate:
     '정확한 건물 대신 도로 위치를 찾았어요. 지도에서 위치를 맞춘 뒤 조회해 주세요.',
   useCurrentLocation: '현재 위치로 조회',
+  useLocationAndCompass: '현재 위치·나침반으로 조회',
   locationChoiceHint: '현재 위치를 사용하거나 지도에서 조회할 위치를 직접 선택할 수 있어요.',
   locationPickerTitle: '조회 위치 선택',
   locationPickerHint:
@@ -162,7 +166,7 @@ export default {
   apiNotConfigured:
     '항공기 중계 API가 연결되지 않았어요. 배포 환경의 API 주소 설정을 확인해 주세요.',
   rateLimit: '공개 API 요청 제한으로 잠시 대기 중입니다. 자동으로 다시 조회합니다.',
-  settingsIntro: '테마, 언어와 바라보는 방향을 설정하세요.',
+  settingsIntro: '테마, 언어, 현재 위치와 바라보는 방향을 각각 설정하세요.',
   close: '설정 닫기',
   appearance: '화면 테마',
   appearanceHint: '표시할 테마를 선택하세요',

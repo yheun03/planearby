@@ -14,6 +14,9 @@ export default {
   guideQuestion4: '位置情報は保存されますか？',
   guideAnswer4:
     '座標はブラウザのメモリでのみ使用します。検索時に概算座標を中継サービスとadsb.lolへ、住所検索語をPhotonへ送信します。アプリは位置を保存しません。',
+  guideQuestion5: '現在地と携帯のコンパスを同時に使えますか？',
+  guideAnswer5:
+    'モバイルでは現在地・コンパス検索ボタンで両方をまとめて要求できます。設定では現在地とコンパスを個別に使用でき、許可しない機能は手動の位置や方向で代替できます。',
 
   addressSearch: '住所を検索',
   addressPlaceholder: '住所や場所を入力',
@@ -36,6 +39,7 @@ export default {
   addressRoadResult: '道路の位置 · 建物番号を確認してください',
   addressApproximate: '建物ではなく道路の位置です。地図でピンを合わせてから検索してください。',
   useCurrentLocation: '現在地で検索',
+  useLocationAndCompass: '現在地・コンパスで検索',
   locationChoiceHint: '現在地を使用するか、地図で検索する位置を直接選択できます。',
   locationPickerTitle: '検索する位置を選択',
   locationPickerHint:
@@ -158,7 +162,7 @@ export default {
   apiForbidden: 'データ提供元がリクエストを拒否しました（403）。5分後に再試行します。',
   apiNotConfigured: '航空機の中継APIが未接続です。配信環境のAPI URL設定を確認してください。',
   rateLimit: '公開APIの制限により待機中です。自動的に再試行します。',
-  settingsIntro: 'テーマ・言語・向いている方向を設定します。',
+  settingsIntro: 'テーマ・言語・現在地・向いている方向を個別に設定します。',
   close: '設定を閉じる',
   appearance: '画面テーマ',
   appearanceHint: '表示テーマを選んでください',

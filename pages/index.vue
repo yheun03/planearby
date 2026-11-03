@@ -625,6 +625,16 @@ async function useDeviceLocation() {
   }
 }
 
+function useDeviceLocationAndCompass() {
+  if (deviceLocationPending.value || state.value === 'locating' || compassWaiting.value) return
+  if (Date.now() < quotaRetryAt) {
+    showQuotaNotice()
+    return
+  }
+  if (isTouchDevice.value) void enableCompass()
+  void useDeviceLocation()
+}
+
 function applyPreferences() {
   document.documentElement.lang = language.value
   document.documentElement.dataset.theme = isDark.value ? 'dark' : 'light'
@@ -1177,14 +1187,30 @@ onUnmounted(() => {
           <button @click="openLocationPicker">{{ t('chooseLocation') }}</button>
           <button
             class="radar-panel__device-location"
-            :disabled="deviceLocationPending || state === 'locating'"
-            @click="useDeviceLocation"
+            :disabled="deviceLocationPending || state === 'locating' || compassWaiting"
+            :aria-busy="deviceLocationPending || state === 'locating' || compassWaiting"
+            @click="useDeviceLocationAndCompass"
           >
             <LocateFixed
               aria-hidden="true"
               :size="14"
             />
-            {{ t(deviceLocationPending ? 'locating' : 'useCurrentLocation') }}
+            <Compass
+              v-if="isTouchDevice"
+              aria-hidden="true"
+              :size="14"
+            />
+            {{
+              t(
+                deviceLocationPending || state === 'locating'
+                  ? 'locating'
+                  : compassWaiting
+                    ? 'compassWaiting'
+                    : isTouchDevice
+                      ? 'useLocationAndCompass'
+                      : 'useCurrentLocation',
+              )
+            }}
           </button>
           <p
             v-if="deviceLocationError"
@@ -1204,18 +1230,6 @@ onUnmounted(() => {
           <span>{{ headingMode === 'device' ? t('sensorMode') : t('manualMode') }}</span>
         </div>
         <p class="radar-panel__caption">{{ t('radarCaption') }}</p>
-        <button
-          v-if="isTouchDevice && headingMode !== 'device'"
-          class="compass-button"
-          :disabled="compassWaiting"
-          @click="enableCompass"
-        >
-          <Compass
-            aria-hidden="true"
-            :size="14"
-          />
-          {{ compassWaiting ? t('compassWaiting') : t('enableCompass') }}
-        </button>
         <p
           v-if="isTouchDevice && compassMessage && headingMode !== 'device'"
           class="radar-panel__sensor-message"
@@ -1236,7 +1250,7 @@ onUnmounted(() => {
         <p>{{ t('guideIntro') }}</p>
         <dl>
           <template
-            v-for="number in 4"
+            v-for="number in 5"
             :key="number"
           >
             <dt>{{ t(`guideQuestion${number}`) }}</dt>

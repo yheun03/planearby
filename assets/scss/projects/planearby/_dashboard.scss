@@ -872,20 +872,6 @@
   line-height: 1.8;
   text-align: center;
 }
-.compass-button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-height: 35px;
-  margin: 14px auto 0;
-  padding: 8px 12px;
-  border: 1px solid var(--border);
-  border-radius: 5px;
-  color: var(--text-secondary);
-  background: var(--surface);
-  font-size: 11px;
-}
 .heading-setting {
   &__value {
     display: flex;

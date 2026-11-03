@@ -83,13 +83,14 @@ export default defineConfig(({ mode }) => {
                 'Nearby aircraft radar',
                 'Address and map location selection',
                 'Reference flight routes',
+                'Combined mobile location and compass scan',
                 'Manual and device compass heading',
               ],
               subjectOf: {
                 '@type': 'FAQPage',
                 ...(siteUrl ? { '@id': `${siteUrl}#guide` } : {}),
                 name: I18N_MESSAGES.ko.guideTitle,
-                mainEntity: [1, 2, 3, 4].map((number) => ({
+                mainEntity: [1, 2, 3, 4, 5].map((number) => ({
                   '@type': 'Question',
                   name: I18N_MESSAGES.ko[`guideQuestion${number}`],
                   acceptedAnswer: {
