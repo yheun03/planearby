@@ -506,13 +506,6 @@
     text-align: center;
   }
 
-  &__caption {
-    margin-top: 25px;
-    color: var(--text-muted);
-    text-align: center;
-    font-size: 11px;
-    line-height: 1.9;
-  }
 }
 
 .radar {
@@ -550,6 +543,43 @@
       width: 28.666%;
       height: 28.666%;
     }
+  }
+
+  &__scale {
+    position: absolute;
+    z-index: 3;
+    top: 50%;
+    padding: 3px 6px;
+    border: 1px solid var(--control-border);
+    border-radius: 3px;
+    color: var(--control-hover-text);
+    background: var(--control-bg);
+    box-shadow: 0 4px 12px rgb(0 0 0 / 18%);
+    font-family: $font-mono;
+    font-size: 10px;
+    line-height: 1.2;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transform: translate(-100%, -50%);
+    transition: opacity 120ms ease;
+
+    &--outer {
+      left: 93%;
+    }
+
+    &--middle {
+      left: 78.666%;
+    }
+
+    &--inner {
+      left: 64.333%;
+    }
+  }
+
+  &--scale-visible &__scale,
+  &:focus-within &__scale {
+    opacity: 1;
   }
 
   &__axis {

@@ -62,6 +62,7 @@ const compassToast = ref('')
 const isTouchDevice = ref(false)
 const clockText = ref('--:--')
 const liveDataStale = ref(false)
+const showRadarScale = ref(false)
 const flightClient = createFlightClient()
 const detailRequests = new Map()
 const seenFlightIds = new Set()
@@ -411,7 +412,7 @@ function resetRotationTimer() {
     }
     if (next) selectFlight(next.id)
     else resetRotationTimer()
-  }, 10000)
+  }, POSITION_REFRESH_MS)
 }
 
 function selectFlight(id) {
@@ -1052,7 +1053,10 @@ onUnmounted(() => {
         <h2 id="radar-title" class="sr-only">
           {{ t('radar') }}
         </h2>
-        <div class="radar" role="group" :aria-label="t('radarLabel')">
+        <div class="radar" :class="{ 'radar--scale-visible': showRadarScale }" role="group" tabindex="0"
+          :aria-label="`${t('radarLabel')} ${t('radarScaleHint')}`" @click="showRadarScale = !showRadarScale"
+          @keydown.enter.prevent="showRadarScale = !showRadarScale"
+          @keydown.space.prevent="showRadarScale = !showRadarScale">
           <div class="radar__grid" aria-hidden="true">
             <span class="radar__forward" />
             <span class="radar__ring radar__ring--outer" />
@@ -1061,6 +1065,13 @@ onUnmounted(() => {
             <span class="radar__axis radar__axis--vertical" />
             <span class="radar__axis radar__axis--horizontal" />
           </div>
+          <span class="radar__scale radar__scale--outer">{{ SEARCH_RADIUS_KM }} km</span>
+          <span class="radar__scale radar__scale--middle">
+            {{ ((SEARCH_RADIUS_KM * 2) / 3).toFixed(1) }} km
+          </span>
+          <span class="radar__scale radar__scale--inner">
+            {{ (SEARCH_RADIUS_KM / 3).toFixed(1) }} km
+          </span>
           <span v-for="(cardinal, index) in ['N', 'E', 'S', 'W']" :key="cardinal" class="radar__cardinal"
             :style="cardinalPosition(index * 90)" aria-hidden="true">
             {{ cardinal }}
@@ -1077,7 +1088,8 @@ onUnmounted(() => {
               0.45,
           }" :style="aircraftPosition(flight)"
             :aria-label="`${flightName(flight)}, ${flight.distance.toFixed(2)} km, ${t(locationMode === 'manual' ? 'selectedLocationBearing' : 'bearing')} ${Math.round(flight.bearing)}°, ${t('heading')} ${formattedTrack(flight.track)}`"
-            :aria-pressed="selectedFlight?.id === flight.id" @click="selectFlight(flight.id)">
+            :aria-pressed="selectedFlight?.id === flight.id"
+            @click.stop="showRadarScale = true; selectFlight(flight.id)">
             <PlanearbyAircraftIcon v-if="Number.isFinite(flight.track)"
               :style="{ transform: `rotate(${relativeBearing(flight.track, viewHeading)}deg)` }" />
             <span v-else class="radar-aircraft__unknown">
@@ -1119,7 +1131,6 @@ onUnmounted(() => {
           <button @click="settingsDialog.showModal()">{{ headingLabel }}</button>
           <span>{{ headingMode === 'device' ? t('sensorMode') : t('manualMode') }}</span>
         </div>
-        <p class="radar-panel__caption">{{ t('radarCaption') }}</p>
         <p v-if="isTouchDevice && compassMessage && headingMode !== 'device'" class="radar-panel__sensor-message"
           role="status">
           {{ t(compassMessage) }}
