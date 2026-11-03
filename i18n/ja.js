@@ -76,6 +76,7 @@ export default {
   manualMode: '手動',
   sensorMode: 'コンパス',
   enableCompass: '携帯のコンパスを使う',
+  resetCompass: 'コンパスを再設定',
   compassHint:
     '画面を上に向けて水平に持ち、コンパスの利用を許可してください。磁場や端末の傾きにより誤差が生じます。',
   compassWaiting: '方向を確認中',

@@ -32,6 +32,7 @@
   --flap-seam: #27323e;
   color-scheme: dark;
 }
+
 :root[data-theme='light'] {
   --page: #f7f8fa;
   --surface: #ffffff;
@@ -53,10 +54,10 @@
   --board-muted: #586a7e;
   --board-border: #8d9eae;
   --board-rule: #bdc9d4;
-  --flap-bg: #ffffff;
-  --flap-leaf: #e9eef2;
-  --flap-text: #172a40;
-  --flap-border: #bfccd9;
-  --flap-seam: #b8c5d3;
+  --flap-bg: #070c12;
+  --flap-leaf: #111922;
+  --flap-text: #f5d97d;
+  --flap-border: #35414e;
+  --flap-seam: #27323e;
   color-scheme: light;
 }

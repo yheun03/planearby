@@ -79,6 +79,7 @@ export default {
   manualMode: '수동',
   sensorMode: '나침반',
   enableCompass: '휴대폰 방향 사용',
+  resetCompass: '나침반 재설정',
   compassHint:
     '휴대폰을 화면이 위로 향하게 수평으로 들고 나침반 사용을 허용해 주세요. 자기장과 기기 기울기에 따라 방향 오차가 생길 수 있어요.',
   compassWaiting: '방향 확인 중',

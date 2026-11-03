@@ -299,6 +299,7 @@ onUnmounted(destroyMap)
             :size="22"
           />
         </span>
+        <h2 id="location-picker-title">{{ t('locationPickerTitle') }}</h2>
         <button
           class="icon-button"
           :aria-label="t('closeLocationPicker')"
@@ -310,7 +311,6 @@ onUnmounted(destroyMap)
           />
         </button>
       </div>
-      <h2 id="location-picker-title">{{ t('locationPickerTitle') }}</h2>
       <p id="location-picker-hint">{{ t('locationPickerHint') }}</p>
 
       <div class="location-picker">

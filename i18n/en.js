@@ -39,7 +39,8 @@ export default {
   addressRoadResult: 'Street location · check the building number',
   addressApproximate: 'Only the street was found. Adjust the pin to the building before scanning.',
   useCurrentLocation: 'Scan at my current location',
-  offerManualLocation: 'We could not find your current location. Choose a search location manually?',
+  offerManualLocation:
+    'We could not find your current location. Choose a search location manually?',
   locationChoiceHint: 'Use your current location or choose a search location on the map.',
   locationPickerTitle: 'Choose a search location',
   locationPickerHint:
@@ -76,6 +77,7 @@ export default {
   manualMode: 'Manual',
   sensorMode: 'Compass',
   enableCompass: 'Use phone compass',
+  resetCompass: 'Reset compass',
   compassHint:
     'Hold your phone level with its screen facing up and allow compass access. Magnetic fields and device tilt can affect the reading.',
   compassWaiting: 'Reading compass',

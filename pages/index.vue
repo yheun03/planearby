@@ -57,14 +57,18 @@ const sensorHeading = ref(null)
 const headingMode = ref('manual')
 const compassMessage = ref('')
 const compassWaiting = ref(false)
+const compassFailureCount = ref(0)
+const compassToast = ref('')
 const isTouchDevice = ref(false)
-const clockNow = ref(null)
+const clockText = ref('--:--')
+const liveDataStale = ref(false)
 const flightClient = createFlightClient()
 const detailRequests = new Map()
 const seenFlightIds = new Set()
 let rotationTimer
 let clockTimer
 let compassTimer
+let compassToastTimer
 let compassGeneration = 0
 let lastSensorRender = 0
 const location = ref(null)
@@ -91,56 +95,77 @@ let lastPollAt = -Infinity
 let resumeOnPageShow = false
 let resumeCompassOnVisible = false
 let compassPermissionGranted = false
+let manualLocationOfferShown = false
 
-const t = (key, values = {}) => {
+const CARDINAL_DIRECTIONS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW']
+const RELATIVE_POSITIONS = [
+  'ahead',
+  'frontRight',
+  'rightSide',
+  'backRight',
+  'behind',
+  'backLeft',
+  'leftSide',
+  'frontLeft',
+]
+const LOCATION_ERROR_KEYS = ['denied', 'unavailable', 'timeout', 'insecure', 'unsupported']
+const clockFormatter = new Intl.DateTimeFormat('en-GB', {
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: false,
+})
+const updatedFormatter = new Intl.DateTimeFormat('en-GB', {
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hour12: false,
+})
+
+const t = (key, values) => {
   let text = messages[language.value][key] ?? messages.en[key] ?? key
-  Object.entries({ radius: SEARCH_RADIUS_KM, ...values }).forEach(([name, value]) => {
-    text = text.replaceAll(`{${name}}`, String(value))
-  })
+  if (text.includes('{radius}')) text = text.replaceAll('{radius}', String(SEARCH_RADIUS_KM))
+  if (values)
+    Object.entries(values).forEach(([name, value]) => {
+      text = text.replaceAll(`{${name}}`, String(value))
+    })
   return text
 }
-const active = computed(() => ['locating', 'tracking'].includes(state.value))
+const active = computed(() => state.value === 'locating' || state.value === 'tracking')
 const isDark = computed(
   () => theme.value === 'dark' || (theme.value === 'system' && systemDark.value),
 )
 const center = computed(() => (source.value === 'preview' ? previewCenter : location.value))
 const aircraft = computed(() => {
-  if (
-    source.value === 'live' &&
-    state.value === 'tracking' &&
-    lastUpdated.value &&
-    clockNow.value - lastUpdated.value > 30000
-  )
-    return []
-  const result = flights.value
-    .map((flight) => ({
+  if (source.value === 'live' && state.value === 'tracking' && liveDataStale.value) return []
+  const result = []
+  const currentCenter = center.value
+  for (const flight of flights.value) {
+    if (!isSupportedAircraft(flight)) continue
+    const distance = currentCenter ? distanceKm(currentCenter, flight) : 0
+    if (distance > SEARCH_RADIUS_KM) continue
+    result.push({
       ...flight,
-      distance: center.value ? distanceKm(center.value, flight) : 0,
-      bearing: center.value ? bearingDegrees(center.value, flight) : 0,
-    }))
-    .filter((flight) => isSupportedAircraft(flight) && flight.distance <= SEARCH_RADIUS_KM)
+      distance,
+      bearing: currentCenter ? bearingDegrees(currentCenter, flight) : 0,
+    })
+  }
   return result.sort((a, b) => a.distance - b.distance)
 })
-const selectedFlight = computed(
-  () => aircraft.value.find((flight) => flight.id === selectedId.value) || aircraft.value[0],
-)
+const selectedFlight = computed(() => {
+  const currentAircraft = aircraft.value
+  return currentAircraft.find((flight) => flight.id === selectedId.value) || currentAircraft[0]
+})
 const viewHeading = computed(() =>
   headingMode.value === 'device' && sensorHeading.value !== null
     ? sensorHeading.value
     : manualHeading.value,
 )
+const showManualHeading = computed(
+  () => !isTouchDevice.value || compassFailureCount.value >= 2,
+)
 const headingLabel = computed(
   () =>
     `${headingMode.value === 'device' ? '≈ ' : ''}${t(directionKey(viewHeading.value))} ${Math.round(viewHeading.value)}°`,
-)
-const clockText = computed(() =>
-  clockNow.value
-    ? new Intl.DateTimeFormat('en-GB', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false,
-      }).format(clockNow.value)
-    : '--:--',
 )
 const selectedIndex = computed(
   () =>
@@ -151,27 +176,17 @@ const selectedIndex = computed(
 )
 const relativePosition = computed(() => {
   if (!selectedFlight.value) return ''
-  const keys = [
-    'ahead',
-    'frontRight',
-    'rightSide',
-    'backRight',
-    'behind',
-    'backLeft',
-    'leftSide',
-    'frontLeft',
-  ]
   return t(
-    keys[Math.round(relativeBearing(selectedFlight.value.bearing, viewHeading.value) / 45) % 8],
+    RELATIVE_POSITIONS[
+    Math.round(relativeBearing(selectedFlight.value.bearing, viewHeading.value) / 45) % 8
+    ],
   )
 })
 const directionKey = (angle) =>
-  `direction${['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(normalizeDegrees(angle) / 45) % 8]}`
+  `direction${CARDINAL_DIRECTIONS[Math.round(normalizeDegrees(angle) / 45) % 8]}`
 const selectedBearing = computed(() => {
   if (!selectedFlight.value) return ''
-  const direction = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][
-    Math.round(selectedFlight.value.bearing / 45) % 8
-  ]
+  const direction = CARDINAL_DIRECTIONS[Math.round(selectedFlight.value.bearing / 45) % 8]
   return t('positionPhrase', { direction: t(`direction${direction}`) })
 })
 const statusLabel = computed(() => {
@@ -188,14 +203,7 @@ const locationText = computed(() =>
       : t('waitingLocation'),
 )
 const updatedText = computed(() =>
-  lastUpdated.value
-    ? new Intl.DateTimeFormat('en-GB', {
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false,
-      }).format(lastUpdated.value)
-    : '—',
+  lastUpdated.value ? updatedFormatter.format(lastUpdated.value) : '—',
 )
 const permissionLabel = computed(() =>
   t(
@@ -235,7 +243,7 @@ const formattedTrack = (track) =>
   Number.isFinite(track) ? `${trackDigits(track)}°` : t('trackUnknown')
 const trackDirection = (track) =>
   Number.isFinite(track)
-    ? ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(track / 45) % 8]
+    ? CARDINAL_DIRECTIONS[Math.round(track / 45) % 8]
     : t('trackUnknown')
 const aircraftPosition = (flight) => {
   const angle = (relativeBearing(flight.bearing, viewHeading.value) * Math.PI) / 180
@@ -298,16 +306,16 @@ function finishSession(nextState = 'ended') {
 }
 
 async function refreshFlights(currentGeneration) {
-  if (
-    currentGeneration !== generation ||
-    pendingRefreshGeneration === currentGeneration ||
-    state.value !== 'tracking'
+  if (currentGeneration !== generation || state.value !== 'tracking') return
+  const requestTime = Date.now()
+  liveDataStale.value = Boolean(
+    lastUpdated.value && requestTime - lastUpdated.value > 30000,
   )
-    return
+  if (pendingRefreshGeneration === currentGeneration) return
   pendingRefreshGeneration = currentGeneration
   try {
-    if (Date.now() < retryAt || Date.now() - lastPollAt < POSITION_REFRESH_MS) return
-    lastPollAt = Date.now()
+    if (requestTime < retryAt || requestTime - lastPollAt < POSITION_REFRESH_MS) return
+    lastPollAt = requestTime
     const nearby = await flightClient.nearby(location.value, controller.signal)
     if (generation !== currentGeneration) return
     flights.value = nearby.map((flight) => {
@@ -316,6 +324,7 @@ async function refreshFlights(currentGeneration) {
       return { ...flight, ...detail, detailsStatus: detail?.detailsStatus || 'pending' }
     })
     lastUpdated.value = Date.now()
+    liveDataStale.value = false
     errorKey.value = ''
     retryAt = 0
     failedPolls = 0
@@ -379,9 +388,9 @@ async function loadSelectedDetails(currentGeneration = generation) {
 }
 
 function resetRotationTimer() {
-  clearInterval(rotationTimer)
+  clearTimeout(rotationTimer)
   if (rotationPaused.value) return
-  rotationTimer = setInterval(() => {
+  rotationTimer = setTimeout(() => {
     if (
       document.hidden ||
       settingsDialog.value?.open ||
@@ -389,8 +398,10 @@ function resetRotationTimer() {
       choosingLocation.value ||
       document.activeElement?.closest('.flight-board') ||
       aircraft.value.length < 2
-    )
+    ) {
+      resetRotationTimer()
       return
+    }
     seenFlightIds.add(selectedFlight.value?.id)
     let next = aircraft.value.find((flight) => !seenFlightIds.has(flight.id))
     if (!next) {
@@ -399,6 +410,7 @@ function resetRotationTimer() {
       next = aircraft.value.find((flight) => flight.id !== selectedFlight.value?.id)
     }
     if (next) selectFlight(next.id)
+    else resetRotationTimer()
   }, 10000)
 }
 
@@ -429,9 +441,27 @@ function setManualHeading(value) {
   compassMessage.value = ''
 }
 
+function showCompassToast() {
+  clearTimeout(compassToastTimer)
+  compassToast.value = 'compassUnavailable'
+  compassToastTimer = setTimeout(() => {
+    compassToast.value = ''
+  }, 5000)
+}
+
 function compassUnavailable() {
   stopCompass()
-  compassMessage.value = 'compassUnavailable'
+  compassPermissionGranted = false
+  compassMessage.value = ''
+  compassFailureCount.value = Math.min(2, compassFailureCount.value + 1)
+  if (compassFailureCount.value >= 2) showCompassToast()
+}
+
+function getScreenOrientationAngle() {
+  const screenAngle = window.screen?.orientation?.angle
+  if (Number.isFinite(screenAngle)) return screenAngle
+  const legacyAngle = Number(window.orientation)
+  return Number.isFinite(legacyAngle) ? legacyAngle : 0
 }
 
 function handleOrientation(event) {
@@ -448,42 +478,48 @@ function handleOrientation(event) {
     compassMessage.value = 'holdFlat'
     return
   }
-  const screenAngle = window.screen.orientation?.angle ?? (Number(window.orientation) || 0)
-  const heading = compassHeading(event, screenAngle)
+  const heading = compassHeading(event, getScreenOrientationAngle())
   if (heading === null) return
   clearTimeout(compassTimer)
   compassTimer = setTimeout(compassUnavailable, 5000)
-  if (performance.now() - lastSensorRender < 100 && sensorHeading.value !== null) return
-  lastSensorRender = performance.now()
+  const renderTime = performance.now()
+  if (renderTime - lastSensorRender < 100 && sensorHeading.value !== null) return
+  lastSensorRender = renderTime
   const previous = sensorHeading.value
   const delta = previous === null ? 0 : normalizeDegrees(heading - previous + 180) - 180
   sensorHeading.value = previous === null ? heading : normalizeDegrees(previous + delta * 0.35)
   headingMode.value = 'device'
   compassWaiting.value = false
+  compassFailureCount.value = 0
+  compassToast.value = ''
+  clearTimeout(compassToastTimer)
   compassMessage.value = 'compassApproximate'
 }
 
 async function enableCompass() {
   stopCompass()
+  compassMessage.value = ''
+  compassToast.value = ''
+  clearTimeout(compassToastTimer)
   const current = compassGeneration
   if (!window.isSecureContext) {
-    compassMessage.value = 'compassSecure'
+    compassUnavailable()
     return
   }
   if (!window.DeviceOrientationEvent) {
-    compassMessage.value = 'compassUnavailable'
+    compassUnavailable()
     return
   }
   compassWaiting.value = true
   compassMessage.value = 'compassWaiting'
   try {
     if (typeof window.DeviceOrientationEvent.requestPermission === 'function') {
-      const permission = await window.DeviceOrientationEvent.requestPermission(true)
+      const permission = await window.DeviceOrientationEvent.requestPermission.call(
+        window.DeviceOrientationEvent,
+      )
       if (current !== compassGeneration) return
       if (permission !== 'granted') {
-        compassPermissionGranted = false
-        compassWaiting.value = false
-        compassMessage.value = 'compassDenied'
+        compassUnavailable()
         return
       }
     }
@@ -492,8 +528,7 @@ async function enableCompass() {
     listenForCompass()
   } catch {
     if (current !== compassGeneration) return
-    stopCompass()
-    compassMessage.value = 'compassDenied'
+    compassUnavailable()
   }
 }
 
@@ -507,6 +542,7 @@ function listenForCompass() {
 
 async function startScan(positionOverride) {
   if (active.value) return
+  manualLocationOfferShown = false
   automaticScanPending = false
   if (Date.now() < quotaRetryAt) {
     showQuotaNotice()
@@ -548,8 +584,7 @@ async function startScan(positionOverride) {
     if (error.uiKey === 'denied') permission.value = 'denied'
     errorKey.value = error.uiKey || 'apiError'
     finishSession('error')
-    if (['denied', 'unavailable', 'timeout', 'insecure', 'unsupported'].includes(error.uiKey))
-      offerManualLocation()
+    if (LOCATION_ERROR_KEYS.includes(error.uiKey)) offerManualLocation()
   }
 }
 
@@ -578,7 +613,8 @@ function openLocationPicker() {
 }
 
 function offerManualLocation() {
-  if (choosingLocation.value) return
+  if (choosingLocation.value || manualLocationOfferShown) return
+  manualLocationOfferShown = true
   if (window.confirm(t('offerManualLocation'))) openLocationPicker()
 }
 
@@ -609,6 +645,7 @@ async function useDeviceLocation() {
     showQuotaNotice()
     return
   }
+  manualLocationOfferShown = false
   const request = new AbortController()
   deviceLocationController = request
   deviceLocationPending.value = true
@@ -631,6 +668,16 @@ async function useDeviceLocation() {
   } finally {
     if (deviceLocationController === request) deviceLocationPending.value = false
   }
+}
+
+async function useDeviceLocationAndCompass() {
+  if (deviceLocationPending.value || state.value === 'locating' || compassWaiting.value) return
+  if (Date.now() < quotaRetryAt) {
+    showQuotaNotice()
+    return
+  }
+  if (isTouchDevice.value) await enableCompass()
+  void useDeviceLocation()
 }
 
 function applyPreferences() {
@@ -692,6 +739,7 @@ function syncLocationPermission() {
     (active.value || !lastUpdated.value)
   ) {
     automaticScanPending = false
+    if (deviceLocationPending.value || state.value === 'locating') return
     errorKey.value = 'denied'
     finishSession('error')
     offerManualLocation()
@@ -699,7 +747,9 @@ function syncLocationPermission() {
 }
 function handleVisibility() {
   if (document.hidden) {
-    clearInterval(rotationTimer)
+    clearTimeout(rotationTimer)
+    clearTimeout(clockTimer)
+    clearInterval(refreshTimer)
     resumeCompassOnVisible =
       compassPermissionGranted &&
       (headingMode.value === 'device' ||
@@ -708,17 +758,29 @@ function handleVisibility() {
     stopCompass()
     compassMessage.value = ''
   } else {
+    scheduleClock()
     if (resumeCompassOnVisible) {
       resumeCompassOnVisible = false
       listenForCompass()
     }
     resetRotationTimer()
     startAutomaticScan()
-    if (state.value === 'tracking') void refreshFlights(generation)
+    if (state.value === 'tracking') {
+      clearInterval(refreshTimer)
+      refreshTimer = setInterval(() => void refreshFlights(generation), POSITION_REFRESH_MS)
+      void refreshFlights(generation)
+    }
   }
 }
 function handleColorScheme(event) {
   systemDark.value = event.matches
+}
+
+function scheduleClock() {
+  clearTimeout(clockTimer)
+  const now = Date.now()
+  clockText.value = clockFormatter.format(now)
+  clockTimer = setTimeout(scheduleClock, 60050 - (now % 60000))
 }
 
 onMounted(async () => {
@@ -737,10 +799,7 @@ onMounted(async () => {
   applyPreferences()
   isTouchDevice.value =
     window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0
-  clockNow.value = Date.now()
-  clockTimer = setInterval(() => {
-    clockNow.value = Date.now()
-  }, 1000)
+  if (!document.hidden) scheduleClock()
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) rotationPaused.value = true
   resetRotationTimer()
   document.addEventListener('visibilitychange', handleVisibility)
@@ -776,8 +835,9 @@ watch(rotationPaused, resetRotationTimer)
 onUnmounted(() => {
   finishSession()
   stopCompass()
-  clearInterval(rotationTimer)
-  clearInterval(clockTimer)
+  clearTimeout(rotationTimer)
+  clearTimeout(clockTimer)
+  clearTimeout(compassToastTimer)
   document.removeEventListener('visibilitychange', handleVisibility)
   window.removeEventListener('pagehide', stopWhenAway)
   window.removeEventListener('pageshow', handlePageShow)
@@ -787,77 +847,42 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <a
-    class="skip-link"
-    href="#main"
-  >
+  <a class="skip-link" href="#main">
     {{ t('skip') }}
   </a>
   <header class="header">
     <div class="header__identity">
-      <a
-        class="wordmark"
-        href="#main"
-        :aria-label="projectConfig.serviceName"
-      >
+      <a class="wordmark" href="#main" :aria-label="projectConfig.serviceName">
         {{ projectConfig.serviceName }}
       </a>
       <span class="header__count">
         {{ aircraft.length }} {{ t('aircraftLegend') }} / {{ SEARCH_RADIUS_KM }} km
       </span>
-      <span
-        class="header__status"
-        role="status"
-      >
+      <span class="header__status" role="status">
         {{ statusLabel }}
       </span>
     </div>
     <div class="scan-controls">
       <span>{{ t('simpleScanHint') }}</span>
-      <button
-        v-if="active"
-        class="scan-button"
-        @click="finishSession()"
-      >
-        <Square
-          aria-hidden="true"
-          :size="13"
-        />
+      <button v-if="active" class="scan-button" @click="finishSession()">
+        <Square aria-hidden="true" :size="13" />
         {{ t('stop') }}
       </button>
-      <button
-        v-else
-        class="scan-button"
-        @click="startScan"
-      >
-        <ScanLine
-          aria-hidden="true"
-          :size="15"
-        />
+      <button v-else class="scan-button" @click="startScan">
+        <ScanLine aria-hidden="true" :size="15" />
         {{ state === 'idle' ? t('start') : t('restart') }}
       </button>
     </div>
   </header>
 
-  <main
-    id="main"
-    class="dashboard"
-    tabindex="-1"
-  >
+  <main id="main" class="dashboard" tabindex="-1">
     <h1 class="sr-only">{{ t('hero') }}</h1>
-    <p
-      class="sr-only"
-      role="status"
-      aria-atomic="true"
-    >
+    <p class="sr-only" role="status" aria-atomic="true">
       {{ selectionAnnouncement }}
     </p>
     <div class="sky-view">
-      <section
-        class="flight-board"
-        aria-labelledby="fids-title"
-        :aria-busy="state === 'locating' || (state === 'tracking' && !lastUpdated)"
-      >
+      <section class="flight-board" aria-labelledby="fids-title"
+        :aria-busy="state === 'locating' || (state === 'tracking' && !lastUpdated)">
         <div class="flight-board__header">
           <div>
             <h2 id="fids-title">{{ t('flightInformation') }}</h2>
@@ -868,10 +893,7 @@ onUnmounted(() => {
             <PlanearbySplitFlap :text="clockText" />
           </div>
         </div>
-        <div
-          v-if="selectedFlight"
-          class="flight-board__content"
-        >
+        <div v-if="selectedFlight" class="flight-board__content">
           <dl class="flight-board__identity">
             <div>
               <dt>
@@ -879,27 +901,15 @@ onUnmounted(() => {
                 <span>Airline</span>
               </dt>
               <dd>
-                <PlanearbySplitFlap
-                  v-if="selectedFlight.airlineCode"
-                  :text="selectedFlight.airlineCode"
-                  :cycle="selectionVersion"
-                />
-                <span
-                  v-else
-                  class="flight-board__missing"
-                >
+                <PlanearbySplitFlap v-if="selectedFlight.airlineCode" :text="selectedFlight.airlineCode"
+                  :cycle="selectionVersion" />
+                <span v-else class="flight-board__missing">
                   {{ t('missing') }}
                 </span>
-                <small
-                  :title="
-                    selectedFlight.airlineSource === 'callsign' ? t('airlineInferred') : undefined
-                  "
-                >
+                <small :title="selectedFlight.airlineSource === 'callsign' ? t('airlineInferred') : undefined
+                  ">
                   {{ airlineName(selectedFlight) }}
-                  <span
-                    v-if="selectedFlight.airlineSource === 'callsign'"
-                    class="sr-only"
-                  >
+                  <span v-if="selectedFlight.airlineSource === 'callsign'" class="sr-only">
                     · {{ t('airlineInferred') }}
                   </span>
                 </small>
@@ -911,12 +921,9 @@ onUnmounted(() => {
                 <span>Flight No.</span>
               </dt>
               <dd>
-                <PlanearbySplitFlap
-                  class="split-flap--callsign"
+                <PlanearbySplitFlap class="split-flap--callsign"
                   :class="{ 'split-flap--long': flightName(selectedFlight).length > 8 }"
-                  :text="flightName(selectedFlight)"
-                  :cycle="selectionVersion"
-                />
+                  :text="flightName(selectedFlight)" :cycle="selectionVersion" />
               </dd>
             </div>
             <div>
@@ -925,15 +932,8 @@ onUnmounted(() => {
                 <span>Aircraft</span>
               </dt>
               <dd>
-                <PlanearbySplitFlap
-                  v-if="selectedFlight.type"
-                  :text="selectedFlight.type"
-                  :cycle="selectionVersion"
-                />
-                <span
-                  v-else
-                  class="flight-board__missing"
-                >
+                <PlanearbySplitFlap v-if="selectedFlight.type" :text="selectedFlight.type" :cycle="selectionVersion" />
+                <span v-else class="flight-board__missing">
                   {{ t('missing') }}
                 </span>
                 <small>{{ modelName(selectedFlight.type) }}</small>
@@ -946,18 +946,11 @@ onUnmounted(() => {
                 {{ t('departure') }}
                 <span>From</span>
               </h3>
-              <PlanearbySplitFlap
-                class="split-flap--airport"
-                :text="selectedFlight.dep || 'NON'"
-                :aria-label="selectedFlight.dep || t('missing')"
-                :cycle="selectionVersion"
-              />
+              <PlanearbySplitFlap class="split-flap--airport" :text="selectedFlight.dep || 'NON'"
+                :aria-label="selectedFlight.dep || t('missing')" :cycle="selectionVersion" />
               <p>{{ airportName(selectedFlight.dep, selectedFlight.depName) }}</p>
             </div>
-            <div
-              class="board-route__path"
-              aria-hidden="true"
-            >
+            <div class="board-route__path" aria-hidden="true">
               <span />
               <PlanearbyAircraftIcon />
               <span />
@@ -967,12 +960,8 @@ onUnmounted(() => {
                 {{ t('arrival') }}
                 <span>To</span>
               </h3>
-              <PlanearbySplitFlap
-                class="split-flap--airport"
-                :text="selectedFlight.arr || 'NON'"
-                :aria-label="selectedFlight.arr || t('missing')"
-                :cycle="selectionVersion"
-              />
+              <PlanearbySplitFlap class="split-flap--airport" :text="selectedFlight.arr || 'NON'"
+                :aria-label="selectedFlight.arr || t('missing')" :cycle="selectionVersion" />
               <p>{{ airportName(selectedFlight.arr, selectedFlight.arrName) }}</p>
             </div>
           </div>
@@ -983,15 +972,10 @@ onUnmounted(() => {
                 <span>Distance</span>
               </dt>
               <dd>
-                <PlanearbySplitFlap
-                  class="split-flap--small"
-                  :text="
-                    selectedFlight.distance >= 1
-                      ? selectedFlight.distance.toFixed(1).padStart(4, '0')
-                      : String(Math.round(selectedFlight.distance * 1000)).padStart(4, '0')
-                  "
-                  :cycle="selectionVersion"
-                />
+                <PlanearbySplitFlap class="split-flap--small" :text="selectedFlight.distance >= 1
+                    ? selectedFlight.distance.toFixed(1).padStart(4, '0')
+                    : String(Math.round(selectedFlight.distance * 1000)).padStart(4, '0')
+                  " :cycle="selectionVersion" />
                 <small>{{ selectedFlight.distance >= 1 ? 'km' : 'm' }}</small>
               </dd>
             </div>
@@ -1001,12 +985,8 @@ onUnmounted(() => {
                 <span>Track</span>
               </dt>
               <dd>
-                <PlanearbySplitFlap
-                  class="split-flap--small"
-                  :text="trackDigits(selectedFlight.track)"
-                  :aria-label="formattedTrack(selectedFlight.track)"
-                  :cycle="selectionVersion"
-                />
+                <PlanearbySplitFlap class="split-flap--small" :text="trackDigits(selectedFlight.track)"
+                  :aria-label="formattedTrack(selectedFlight.track)" :cycle="selectionVersion" />
                 <small>
                   °
                   {{
@@ -1019,18 +999,12 @@ onUnmounted(() => {
             </div>
           </dl>
           <p class="flight-board__position">
-            <Navigation2
-              aria-hidden="true"
-              :size="12"
-            />
+            <Navigation2 aria-hidden="true" :size="12" />
             {{ relativePosition }}
             <span>·</span>
             {{ selectedBearing }}
           </p>
-          <p
-            class="flight-board__note"
-            :role="errorKey ? 'alert' : 'status'"
-          >
+          <p class="flight-board__note" :role="errorKey ? 'alert' : 'status'">
             {{
               errorKey
                 ? t(errorKey)
@@ -1042,31 +1016,16 @@ onUnmounted(() => {
             }}
           </p>
         </div>
-        <div
-          v-else
-          class="fids-empty"
-          :role="errorKey ? 'alert' : 'status'"
-        >
+        <div v-else class="fids-empty" :role="errorKey ? 'alert' : 'status'">
           <h3>{{ emptyTitle }}</h3>
           <p>{{ emptyText }}</p>
-          <button
-            v-if="
-              ['denied', 'unavailable', 'timeout', 'insecure', 'unsupported'].includes(errorKey)
-            "
-            class="fids-empty__location"
-            @click="openLocationPicker"
-          >
-            <MapPin
-              aria-hidden="true"
-              :size="16"
-            />
+          <button v-if="
+            ['denied', 'unavailable', 'timeout', 'insecure', 'unsupported'].includes(errorKey)
+          " class="fids-empty__location" @click="openLocationPicker">
+            <MapPin aria-hidden="true" :size="16" />
             {{ t('chooseLocation') }}
           </button>
-          <button
-            v-if="errorKey"
-            class="fids-empty__preview"
-            @click="showPreview"
-          >
+          <button v-if="errorKey" class="fids-empty__preview" @click="showPreview">
             {{ t('showPreview') }}
           </button>
         </div>
@@ -1076,23 +1035,11 @@ onUnmounted(() => {
             <i>/</i>
             {{ String(aircraft.length).padStart(2, '0') }}
           </span>
-          <button
-            class="flight-board__rotation"
-            :class="{ 'flight-board__rotation--paused': rotationPaused }"
-            :aria-label="rotationPaused ? t('resumeRotation') : t('pauseRotation')"
-            :aria-pressed="rotationPaused"
-            @click="rotationPaused = !rotationPaused"
-          >
-            <Play
-              v-if="rotationPaused"
-              aria-hidden="true"
-              :size="16"
-            />
-            <Pause
-              v-else
-              aria-hidden="true"
-              :size="16"
-            />
+          <button class="flight-board__rotation" :class="{ 'flight-board__rotation--paused': rotationPaused }"
+            :aria-label="rotationPaused ? t('resumeRotation') : t('pauseRotation')" :aria-pressed="rotationPaused"
+            @click="rotationPaused = !rotationPaused">
+            <Play v-if="rotationPaused" aria-hidden="true" :size="16" />
+            <Pause v-else aria-hidden="true" :size="16" />
             <span class="flight-board__rotation-label">
               {{ t('autoRotate') }}
               <small>{{ t(rotationPaused ? 'rotationPaused' : 'rotationRunning') }}</small>
@@ -1101,25 +1048,12 @@ onUnmounted(() => {
         </div>
       </section>
 
-      <section
-        class="radar-panel"
-        aria-labelledby="radar-title"
-      >
-        <h2
-          id="radar-title"
-          class="sr-only"
-        >
+      <section class="radar-panel" aria-labelledby="radar-title">
+        <h2 id="radar-title" class="sr-only">
           {{ t('radar') }}
         </h2>
-        <div
-          class="radar"
-          role="group"
-          :aria-label="t('radarLabel')"
-        >
-          <div
-            class="radar__grid"
-            aria-hidden="true"
-          >
+        <div class="radar" role="group" :aria-label="t('radarLabel')">
+          <div class="radar__grid" aria-hidden="true">
             <span class="radar__forward" />
             <span class="radar__ring radar__ring--outer" />
             <span class="radar__ring radar__ring--middle" />
@@ -1127,48 +1061,26 @@ onUnmounted(() => {
             <span class="radar__axis radar__axis--vertical" />
             <span class="radar__axis radar__axis--horizontal" />
           </div>
-          <span
-            v-for="(cardinal, index) in ['N', 'E', 'S', 'W']"
-            :key="cardinal"
-            class="radar__cardinal"
-            :style="cardinalPosition(index * 90)"
-            aria-hidden="true"
-          >
+          <span v-for="(cardinal, index) in ['N', 'E', 'S', 'W']" :key="cardinal" class="radar__cardinal"
+            :style="cardinalPosition(index * 90)" aria-hidden="true">
             {{ cardinal }}
           </span>
-          <div
-            class="radar__you"
-            :aria-label="
-              source === 'preview'
-                ? t('sampleYou')
-                : t(locationMode === 'manual' ? 'selectedLocation' : 'you')
-            "
-            role="img"
-          />
-          <button
-            v-for="flight in aircraft"
-            :key="flight.id"
-            class="radar-aircraft"
-            :class="{
-              'radar-aircraft--selected': selectedFlight?.id === flight.id,
-              'radar-aircraft--label-left':
-                Math.sin((relativeBearing(flight.bearing, viewHeading) * Math.PI) / 180) *
-                  (flight.distance / SEARCH_RADIUS_KM) >
-                0.45,
-            }"
-            :style="aircraftPosition(flight)"
+          <div class="radar__you" :aria-label="source === 'preview'
+              ? t('sampleYou')
+              : t(locationMode === 'manual' ? 'selectedLocation' : 'you')
+            " role="img" />
+          <button v-for="flight in aircraft" :key="flight.id" class="radar-aircraft" :class="{
+            'radar-aircraft--selected': selectedFlight?.id === flight.id,
+            'radar-aircraft--label-left':
+              Math.sin((relativeBearing(flight.bearing, viewHeading) * Math.PI) / 180) *
+              (flight.distance / SEARCH_RADIUS_KM) >
+              0.45,
+          }" :style="aircraftPosition(flight)"
             :aria-label="`${flightName(flight)}, ${flight.distance.toFixed(2)} km, ${t(locationMode === 'manual' ? 'selectedLocationBearing' : 'bearing')} ${Math.round(flight.bearing)}°, ${t('heading')} ${formattedTrack(flight.track)}`"
-            :aria-pressed="selectedFlight?.id === flight.id"
-            @click="selectFlight(flight.id)"
-          >
-            <PlanearbyAircraftIcon
-              v-if="Number.isFinite(flight.track)"
-              :style="{ transform: `rotate(${relativeBearing(flight.track, viewHeading)}deg)` }"
-            />
-            <span
-              v-else
-              class="radar-aircraft__unknown"
-            >
+            :aria-pressed="selectedFlight?.id === flight.id" @click="selectFlight(flight.id)">
+            <PlanearbyAircraftIcon v-if="Number.isFinite(flight.track)"
+              :style="{ transform: `rotate(${relativeBearing(flight.track, viewHeading)}deg)` }" />
+            <span v-else class="radar-aircraft__unknown">
               ?
             </span>
             <span class="radar-aircraft__label">
@@ -1178,66 +1090,51 @@ onUnmounted(() => {
           </button>
         </div>
         <div class="radar-panel__location">
-          <MapPin
-            aria-hidden="true"
-            :size="14"
-          />
+          <MapPin aria-hidden="true" :size="14" />
           <span>{{ locationText }}</span>
-          <button
-            class="radar-panel__device-location"
-            :disabled="deviceLocationPending || state === 'locating'"
-            :aria-busy="deviceLocationPending || state === 'locating'"
-            @click="useDeviceLocation"
-          >
-            <LocateFixed
-              aria-hidden="true"
-              :size="14"
-            />
+          <button class="radar-panel__device-location"
+            :disabled="deviceLocationPending || state === 'locating' || compassWaiting"
+            :aria-busy="deviceLocationPending || state === 'locating' || compassWaiting"
+            @click="compassFailureCount ? enableCompass() : useDeviceLocationAndCompass()">
+            <Compass v-if="compassFailureCount" aria-hidden="true" :size="14" />
+            <LocateFixed v-else aria-hidden="true" :size="14" />
             {{
-              t(deviceLocationPending || state === 'locating' ? 'locating' : 'useCurrentLocation')
+              t(
+                deviceLocationPending || state === 'locating'
+                  ? 'locating'
+                  : compassWaiting
+                    ? 'compassWaiting'
+                    : compassFailureCount
+                      ? 'resetCompass'
+                      : 'useCurrentLocation',
+              )
             }}
           </button>
-          <p
-            v-if="deviceLocationError"
-            class="radar-panel__location-error"
-            role="status"
-          >
+          <p v-if="deviceLocationError" class="radar-panel__location-error" role="status">
             {{ t(deviceLocationError) }} {{ t('locationKept') }}
           </p>
         </div>
-        <div class="radar-panel__direction">
-          <Navigation2
-            aria-hidden="true"
-            :size="13"
-          />
+        <div v-if="headingMode === 'device' || showManualHeading" class="radar-panel__direction">
+          <Navigation2 aria-hidden="true" :size="13" />
           <span>{{ t('viewingDirection') }}</span>
           <button @click="settingsDialog.showModal()">{{ headingLabel }}</button>
           <span>{{ headingMode === 'device' ? t('sensorMode') : t('manualMode') }}</span>
         </div>
         <p class="radar-panel__caption">{{ t('radarCaption') }}</p>
-        <p
-          v-if="isTouchDevice && compassMessage && headingMode !== 'device'"
-          class="radar-panel__sensor-message"
-          role="status"
-        >
+        <p v-if="isTouchDevice && compassMessage && headingMode !== 'device'" class="radar-panel__sensor-message"
+          role="status">
           {{ t(compassMessage) }}
         </p>
       </section>
     </div>
-    <details
-      id="guide"
-      class="service-guide"
-    >
+    <details id="guide" class="service-guide">
       <summary>
         <h2>{{ t('guideTitle') }}</h2>
       </summary>
       <div class="service-guide__content">
         <p>{{ t('guideIntro') }}</p>
         <dl>
-          <template
-            v-for="number in 5"
-            :key="number"
-          >
+          <template v-for="number in 5" :key="number">
             <dt>{{ t(`guideQuestion${number}`) }}</dt>
             <dd>{{ t(`guideAnswer${number}`) }}</dd>
           </template>
@@ -1254,343 +1151,185 @@ onUnmounted(() => {
       </template>
     </span>
     <p>
-      <a
-        href="https://www.adsb.lol/docs/open-data/api/"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
+      <a href="https://www.adsb.lol/docs/open-data/api/" target="_blank" rel="noopener noreferrer">
         adsb.lol
       </a>
-      <a
-        href="https://opendatacommons.org/licenses/odbl/1-0/"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
+      <a href="https://opendatacommons.org/licenses/odbl/1-0/" target="_blank" rel="noopener noreferrer">
         ODbL 1.0
       </a>
       <span>·</span>
-      <a
-        href="https://www.adsbdb.com/"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
+      <a href="https://www.adsbdb.com/" target="_blank" rel="noopener noreferrer">
         adsbdb
       </a>
       <span>·</span>
-      <a
-        :href="projectConfig.airlineData.sourceUrl"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
+      <a :href="projectConfig.airlineData.sourceUrl" target="_blank" rel="noopener noreferrer">
         OpenFlights
       </a>
       <span>·</span>
-      <a
-        :href="projectConfig.domesticAirlineData.sourceUrl"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
+      <a :href="projectConfig.domesticAirlineData.sourceUrl" target="_blank" rel="noopener noreferrer">
         {{ projectConfig.domesticAirlineData.name }}
       </a>
     </p>
   </footer>
-  <button
-    class="settings-fab"
-    :aria-label="t('settings')"
-    :title="t('settings')"
-    aria-haspopup="dialog"
-    @click="settingsDialog.showModal()"
-  >
-    <Settings2
-      aria-hidden="true"
-      :size="20"
-    />
+  <button class="settings-fab" :aria-label="t('settings')" :title="t('settings')" aria-haspopup="dialog"
+    @click="settingsDialog.showModal()">
+    <Settings2 aria-hidden="true" :size="20" />
   </button>
-  <dialog
-    ref="settingsDialog"
-    class="settings-dialog"
-    aria-labelledby="settings-title"
-    aria-describedby="settings-intro"
-    @close="resetRotationTimer()"
-    @click="
+  <dialog ref="settingsDialog" class="settings-dialog" aria-labelledby="settings-title"
+    aria-describedby="settings-intro" @close="resetRotationTimer()" @click="
       (event) => {
         if (event.target === settingsDialog) settingsDialog.close()
       }
-    "
-  >
+    ">
     <div class="settings-dialog__content">
       <div class="settings-dialog__heading">
         <span class="settings-dialog__icon">
-          <Settings2
-            aria-hidden="true"
-            :size="22"
-          />
+          <Settings2 aria-hidden="true" :size="22" />
         </span>
-        <button
-          class="icon-button"
-          :aria-label="t('close')"
-          @click="settingsDialog.close()"
-        >
-          <X
-            aria-hidden="true"
-            :size="21"
-          />
+        <h2 id="settings-title">{{ t('settings') }}</h2>
+        <button class="icon-button" :aria-label="t('close')" @click="settingsDialog.close()">
+          <X aria-hidden="true" :size="21" />
         </button>
       </div>
-      <h2 id="settings-title">{{ t('settings') }}</h2>
       <p id="settings-intro">{{ t('settingsIntro') }}</p>
       <fieldset class="setting-group">
         <legend>{{ t('appearance') }}</legend>
         <p>{{ t('appearanceHint') }}</p>
         <div class="theme-options">
-          <label
-            v-for="option in ['light', 'dark', 'system']"
-            :key="option"
-            :class="{ 'theme-options__option--selected': theme === option }"
-            class="theme-options__option"
-          >
-            <input
-              v-model="theme"
-              type="radio"
-              name="theme"
-              :value="option"
-            />
-            <Sun
-              aria-hidden="true"
-              v-if="option === 'light'"
-              :size="21"
-            />
-            <Moon
-              aria-hidden="true"
-              v-else-if="option === 'dark'"
-              :size="21"
-            />
-            <Monitor
-              aria-hidden="true"
-              v-else
-              :size="21"
-            />
+          <label v-for="option in ['light', 'dark', 'system']" :key="option"
+            :class="{ 'theme-options__option--selected': theme === option }" class="theme-options__option">
+            <input v-model="theme" type="radio" name="theme" :value="option" />
+            <Sun aria-hidden="true" v-if="option === 'light'" :size="21" />
+            <Moon aria-hidden="true" v-else-if="option === 'dark'" :size="21" />
+            <Monitor aria-hidden="true" v-else :size="21" />
             <span>{{ t(option) }}</span>
-            <Check
-              aria-hidden="true"
-              v-if="theme === option"
-              class="theme-options__check"
-              :size="13"
-            />
+            <Check aria-hidden="true" v-if="theme === option" class="theme-options__check" :size="13" />
           </label>
         </div>
       </fieldset>
       <fieldset class="setting-group">
         <legend>
-          <Globe2
-            aria-hidden="true"
-            :size="15"
-          />
+          <Globe2 aria-hidden="true" :size="15" />
           {{ t('language') }}
         </legend>
         <p>{{ t('languageHint') }}</p>
         <div class="language-options">
-          <label
-            v-for="option in [
-              { code: 'ko', name: '한국어' },
-              { code: 'en', name: 'English' },
-              { code: 'ja', name: '日本語' },
-            ]"
-            :key="option.code"
-            :lang="option.code"
-          >
-            <input
-              v-model="language"
-              type="radio"
-              name="language"
-              :value="option.code"
-            />
+          <label v-for="option in [
+            { code: 'ko', name: '한국어' },
+            { code: 'en', name: 'English' },
+            { code: 'ja', name: '日本語' },
+          ]" :key="option.code" :lang="option.code">
+            <input v-model="language" type="radio" name="language" :value="option.code" />
             <span>{{ option.name }}</span>
-            <Check
-              aria-hidden="true"
-              v-if="language === option.code"
-              :size="15"
-            />
+            <Check aria-hidden="true" v-if="language === option.code" :size="15" />
           </label>
         </div>
       </fieldset>
       <fieldset class="setting-group heading-setting">
         <legend>
-          <Compass
-            aria-hidden="true"
-            :size="15"
-          />
-          {{ t('viewingDirection') }}
+          <Compass aria-hidden="true" :size="15" />
+          {{ t(showManualHeading ? 'viewingDirection' : 'sensorMode') }}
         </legend>
-        <p>{{ t('manualHeadingHint') }}</p>
-        <div class="heading-setting__value">
-          <span>{{ headingLabel }}</span>
-          <label>
-            <span class="sr-only">{{ t('manualAngle') }}</span>
-            <input
-              type="number"
-              min="0"
-              max="359"
-              step="1"
-              :value="manualHeading"
-              @change="setManualHeading($event.target.value)"
-            />
-            <span>°</span>
-          </label>
-        </div>
-        <input
-          class="heading-setting__range"
-          type="range"
-          min="0"
-          max="359"
-          step="1"
-          :value="manualHeading"
-          :aria-label="t('manualAngle')"
-          :aria-valuetext="`${t(directionKey(manualHeading))} ${manualHeading}°`"
-          @input="setManualHeading($event.target.value)"
-        />
-        <div class="heading-setting__presets">
-          <button
-            v-for="angle in [0, 90, 180, 270]"
-            :key="angle"
-            :aria-pressed="headingMode === 'manual' && manualHeading === angle"
-            @click="setManualHeading(angle)"
-          >
-            {{ t(directionKey(angle)) }}
-            <small>{{ angle }}°</small>
-          </button>
-        </div>
+        <template v-if="showManualHeading">
+          <p>{{ t('manualHeadingHint') }}</p>
+          <div class="heading-setting__value">
+            <span>{{ headingLabel }}</span>
+            <label>
+              <span class="sr-only">{{ t('manualAngle') }}</span>
+              <input type="number" min="0" max="359" step="1" :value="manualHeading"
+                @change="setManualHeading($event.target.value)" />
+              <span>°</span>
+            </label>
+          </div>
+          <input class="heading-setting__range" type="range" min="0" max="359" step="1" :value="manualHeading"
+            :aria-label="t('manualAngle')" :aria-valuetext="`${t(directionKey(manualHeading))} ${manualHeading}°`"
+            @input="setManualHeading($event.target.value)" />
+          <div class="heading-setting__presets">
+            <button v-for="angle in [0, 90, 180, 270]" :key="angle"
+              :aria-pressed="headingMode === 'manual' && manualHeading === angle" @click="setManualHeading(angle)">
+              {{ t(directionKey(angle)) }}
+              <small>{{ angle }}°</small>
+            </button>
+          </div>
+        </template>
         <template v-if="isTouchDevice">
           <p>{{ t('compassHint') }}</p>
-          <button
-            class="permission-button"
-            :disabled="compassWaiting"
-            @click="enableCompass"
-          >
-            <Compass
-              aria-hidden="true"
-              :size="15"
-            />
-            {{ compassWaiting ? t('compassWaiting') : t('enableCompass') }}
-            <ArrowUpRight
-              aria-hidden="true"
-              :size="15"
-            />
+          <button class="permission-button" :disabled="compassWaiting" @click="enableCompass">
+            <Compass aria-hidden="true" :size="15" />
+            {{
+              compassWaiting
+                ? t('compassWaiting')
+                : t(compassFailureCount ? 'resetCompass' : 'enableCompass')
+            }}
+            <ArrowUpRight aria-hidden="true" :size="15" />
           </button>
         </template>
-        <p
-          v-if="compassMessage"
-          class="setting-group__message"
-          role="status"
-        >
+        <p v-if="compassMessage" class="setting-group__message" role="status">
           {{ t(compassMessage) }}
         </p>
       </fieldset>
       <div class="setting-group setting-group--location">
         <div class="setting-group__title">
           <h3>
-            <MapPin
-              aria-hidden="true"
-              :size="15"
-            />
+            <MapPin aria-hidden="true" :size="15" />
             {{ t('searchLocation') }}
           </h3>
-          <span
-            :class="{ 'permission-badge--granted': permission === 'granted' }"
-            class="permission-badge"
-          >
+          <span :class="{ 'permission-badge--granted': permission === 'granted' }" class="permission-badge">
             {{ permissionLabel }}
           </span>
         </div>
         <p>{{ t('locationChoiceHint') }}</p>
-        <p
-          v-if="deviceLocationError"
-          class="setting-group__message"
-          role="status"
-        >
+        <p v-if="deviceLocationError" class="setting-group__message" role="status">
           {{ t(deviceLocationError) }} {{ t('locationKept') }}
         </p>
         <p v-if="locationMode === 'manual'">{{ t('manualLocation') }} · {{ coordinateText }}</p>
-        <button
-          class="permission-button"
-          :disabled="deviceLocationPending || state === 'locating'"
-          @click="useDeviceLocation"
-        >
-          <LocateFixed
-            aria-hidden="true"
-            :size="16"
-          />
+        <button class="permission-button" :disabled="deviceLocationPending || state === 'locating'"
+          @click="useDeviceLocation">
+          <LocateFixed aria-hidden="true" :size="16" />
           {{
             deviceLocationPending || state === 'locating' ? t('locating') : t('useCurrentLocation')
           }}
-          <ArrowUpRight
-            aria-hidden="true"
-            :size="15"
-          />
+          <ArrowUpRight aria-hidden="true" :size="15" />
         </button>
-        <button
-          class="permission-button"
-          @click="openLocationPicker"
-        >
-          <MapPin
-            aria-hidden="true"
-            :size="16"
-          />
+        <button class="permission-button" @click="openLocationPicker">
+          <MapPin aria-hidden="true" :size="16" />
           {{ t('chooseLocation') }}
-          <ArrowUpRight
-            aria-hidden="true"
-            :size="15"
-          />
+          <ArrowUpRight aria-hidden="true" :size="15" />
         </button>
         <p>{{ t('permissionHint') }}</p>
       </div>
       <div class="settings-dialog__saved">
-        <ShieldCheck
-          aria-hidden="true"
-          :size="14"
-        />
+        <ShieldCheck aria-hidden="true" :size="14" />
         {{ t('saved') }}
       </div>
+      <p v-if="compassToast && settingsDialog?.open" class="compass-toast" role="alert">
+        {{ t(compassToast) }}
+      </p>
     </div>
   </dialog>
-  <PlanearbyLocationPicker
-    ref="locationPicker"
-    :initial-location="location || manualLocation || previewCenter"
-    :language="language"
-    :device-location-pending="deviceLocationPending || state === 'locating'"
-    :device-location-error="deviceLocationError"
-    @device-location="useDeviceLocation"
-    @select="applyManualLocation"
+  <p v-if="compassToast && !settingsDialog?.open" class="compass-toast" role="alert">
+    {{ t(compassToast) }}
+  </p>
+  <PlanearbyLocationPicker ref="locationPicker" :initial-location="location || manualLocation || previewCenter"
+    :language="language" :device-location-pending="deviceLocationPending || state === 'locating'"
+    :device-location-error="deviceLocationError" @device-location="useDeviceLocation" @select="applyManualLocation"
     @close="
       () => {
         choosingLocation = false
         cancelDeviceLocation()
         resetRotationTimer()
       }
-    "
-  />
-  <dialog
-    ref="quotaDialog"
-    class="quota-dialog"
-    role="alertdialog"
-    aria-labelledby="quota-title"
-    aria-describedby="quota-description"
-  >
+    " />
+  <dialog ref="quotaDialog" class="quota-dialog" role="alertdialog" aria-labelledby="quota-title"
+    aria-describedby="quota-description">
     <div class="quota-dialog__content">
       <span class="quota-dialog__icon">
-        <ScanLine
-          aria-hidden="true"
-          :size="28"
-        />
+        <ScanLine aria-hidden="true" :size="28" />
       </span>
       <p class="quota-dialog__source">adsb.lol</p>
       <h2 id="quota-title">{{ t('quotaTitle') }}</h2>
       <p id="quota-description">{{ t('quotaExceeded') }}</p>
-      <button
-        class="quota-dialog__confirm"
-        autofocus
-        @click="quotaDialog.close()"
-      >
+      <button class="quota-dialog__confirm" autofocus @click="quotaDialog.close()">
         {{ t('quotaConfirm') }}
       </button>
     </div>
