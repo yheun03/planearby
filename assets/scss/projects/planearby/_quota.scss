@@ -71,14 +71,25 @@ html:has(.quota-dialog[open]) {
     margin-top: 32px;
     border: 1px solid var(--accent);
     border-radius: 3px;
-    color: var(--page);
-    background: var(--accent);
+    color: var(--primary-text);
+    background: var(--primary-bg);
     font-size: 14px;
     font-weight: 600;
 
     &:hover {
-      color: var(--accent-text);
-      background: var(--accent-soft);
+      color: var(--primary-text);
+      background: var(--primary-hover-bg);
     }
+
+    &:active:not(:disabled) {
+      background: var(--primary-active-bg);
+    }
+  }
+}
+
+@media (hover: none) {
+  .quota-dialog__confirm:hover:not(:active) {
+    color: var(--primary-text);
+    background: var(--primary-bg);
   }
 }

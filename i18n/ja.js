@@ -39,6 +39,7 @@ export default {
   addressRoadResult: '道路の位置 · 建物番号を確認してください',
   addressApproximate: '建物ではなく道路の位置です。地図でピンを合わせてから検索してください。',
   useCurrentLocation: '現在地で検索',
+  resetCurrentLocation: '現在地を再設定',
   offerManualLocation: '現在地を確認できませんでした。検索位置を直接選択しますか？',
   locationChoiceHint: '現在地を使用するか、地図で検索する位置を直接選択できます。',
   locationPickerTitle: '検索する位置を選択',

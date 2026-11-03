@@ -39,6 +39,7 @@ export default {
   addressRoadResult: 'Street location · check the building number',
   addressApproximate: 'Only the street was found. Adjust the pin to the building before scanning.',
   useCurrentLocation: 'Scan at my current location',
+  resetCurrentLocation: 'Reset current location',
   offerManualLocation:
     'We could not find your current location. Choose a search location manually?',
   locationChoiceHint: 'Use your current location or choose a search location on the map.',

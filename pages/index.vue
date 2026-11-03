@@ -676,7 +676,13 @@ async function useDeviceLocationAndCompass() {
     showQuotaNotice()
     return
   }
-  if (isTouchDevice.value) await enableCompass()
+  if (
+    isTouchDevice.value &&
+    permission.value !== 'denied' &&
+    compassFailureCount.value === 0 &&
+    headingMode.value !== 'device'
+  )
+    await enableCompass()
   void useDeviceLocation()
 }
 
@@ -973,8 +979,8 @@ onUnmounted(() => {
               </dt>
               <dd>
                 <PlanearbySplitFlap class="split-flap--small" :text="selectedFlight.distance >= 1
-                    ? selectedFlight.distance.toFixed(1).padStart(4, '0')
-                    : String(Math.round(selectedFlight.distance * 1000)).padStart(4, '0')
+                  ? selectedFlight.distance.toFixed(1).padStart(4, '0')
+                  : String(Math.round(selectedFlight.distance * 1000)).padStart(4, '0')
                   " :cycle="selectionVersion" />
                 <small>{{ selectedFlight.distance >= 1 ? 'km' : 'm' }}</small>
               </dd>
@@ -1019,12 +1025,6 @@ onUnmounted(() => {
         <div v-else class="fids-empty" :role="errorKey ? 'alert' : 'status'">
           <h3>{{ emptyTitle }}</h3>
           <p>{{ emptyText }}</p>
-          <button v-if="
-            ['denied', 'unavailable', 'timeout', 'insecure', 'unsupported'].includes(errorKey)
-          " class="fids-empty__location" @click="openLocationPicker">
-            <MapPin aria-hidden="true" :size="16" />
-            {{ t('chooseLocation') }}
-          </button>
           <button v-if="errorKey" class="fids-empty__preview" @click="showPreview">
             {{ t('showPreview') }}
           </button>
@@ -1066,8 +1066,8 @@ onUnmounted(() => {
             {{ cardinal }}
           </span>
           <div class="radar__you" :aria-label="source === 'preview'
-              ? t('sampleYou')
-              : t(locationMode === 'manual' ? 'selectedLocation' : 'you')
+            ? t('sampleYou')
+            : t(locationMode === 'manual' ? 'selectedLocation' : 'you')
             " role="img" />
           <button v-for="flight in aircraft" :key="flight.id" class="radar-aircraft" :class="{
             'radar-aircraft--selected': selectedFlight?.id === flight.id,
@@ -1095,17 +1095,16 @@ onUnmounted(() => {
           <button class="radar-panel__device-location"
             :disabled="deviceLocationPending || state === 'locating' || compassWaiting"
             :aria-busy="deviceLocationPending || state === 'locating' || compassWaiting"
-            @click="compassFailureCount ? enableCompass() : useDeviceLocationAndCompass()">
-            <Compass v-if="compassFailureCount" aria-hidden="true" :size="14" />
-            <LocateFixed v-else aria-hidden="true" :size="14" />
+            @click="useDeviceLocationAndCompass">
+            <LocateFixed aria-hidden="true" :size="14" />
             {{
               t(
                 deviceLocationPending || state === 'locating'
                   ? 'locating'
                   : compassWaiting
                     ? 'compassWaiting'
-                    : compassFailureCount
-                      ? 'resetCompass'
+                    : permission === 'denied' || deviceLocationError
+                      ? 'resetCurrentLocation'
                       : 'useCurrentLocation',
               )
             }}
@@ -1287,7 +1286,13 @@ onUnmounted(() => {
           @click="useDeviceLocation">
           <LocateFixed aria-hidden="true" :size="16" />
           {{
-            deviceLocationPending || state === 'locating' ? t('locating') : t('useCurrentLocation')
+            deviceLocationPending || state === 'locating'
+              ? t('locating')
+              : t(
+                permission === 'denied' || deviceLocationError
+                  ? 'resetCurrentLocation'
+                  : 'useCurrentLocation',
+              )
           }}
           <ArrowUpRight aria-hidden="true" :size="15" />
         </button>

@@ -144,9 +144,10 @@
     flex-direction: column;
     gap: 9px;
     min-height: 64px;
-    border: 1px solid var(--border);
+    border: 1px solid var(--control-border);
     border-radius: 3px;
     color: var(--text-secondary);
+    background: var(--control-bg);
     font-size: 11px;
     cursor: pointer;
 
@@ -163,6 +164,17 @@
     &:has(input:focus-visible) {
       outline: 3px solid var(--accent);
       outline-offset: 3px;
+    }
+
+    &:hover {
+      border-color: var(--control-hover-border);
+      color: var(--control-hover-text);
+      background: var(--control-hover-bg);
+    }
+
+    &:active {
+      border-color: var(--control-active-border);
+      background: var(--control-active-bg);
     }
 
     &--selected {
@@ -191,8 +203,10 @@
     gap: 6px;
     min-height: 44px;
     font-size: 11px;
-    border: 1px solid var(--border);
+    border: 1px solid var(--control-border);
     border-radius: 3px;
+    color: var(--control-text);
+    background: var(--control-bg);
     cursor: pointer;
 
     >input {
@@ -203,6 +217,17 @@
       opacity: 0;
       margin: 0;
       cursor: pointer;
+    }
+
+    &:hover {
+      border-color: var(--control-hover-border);
+      color: var(--control-hover-text);
+      background: var(--control-hover-bg);
+    }
+
+    &:active {
+      border-color: var(--control-active-border);
+      background: var(--control-active-bg);
     }
 
     &:has(input:checked) {
@@ -240,17 +265,35 @@
   min-height: 44px;
   margin-top: 12px;
   padding: 8px 12px;
-  color: var(--text-secondary);
+  color: var(--control-text);
   font-size: 11px;
-  background: var(--surface-subtle);
-  border: 1px solid var(--border);
+  background: var(--control-bg);
+  border: 1px solid var(--control-border);
   border-radius: 3px;
 
   >svg:last-child {
     margin-left: auto;
   }
 
-  &:hover {
-    background: var(--accent-soft);
+  &:hover:not(:disabled) {
+    border-color: var(--control-hover-border);
+    color: var(--control-hover-text);
+    background: var(--control-hover-bg);
+  }
+
+  &:active:not(:disabled) {
+    border-color: var(--control-active-border);
+    background: var(--control-active-bg);
+  }
+}
+
+@media (hover: none) {
+
+  .theme-options__option:hover:not(:active):not(.theme-options__option--selected),
+  .language-options>label:hover:not(:active):not(:has(input:checked)),
+  .permission-button:hover:not(:active) {
+    border-color: var(--control-border);
+    color: var(--control-text);
+    background: var(--control-bg);
   }
 }

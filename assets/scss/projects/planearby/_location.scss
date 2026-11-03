@@ -105,12 +105,17 @@ html:has(.location-dialog[open]) {
       @include flex-center;
       width: 44px;
       height: 44px;
-      color: var(--text);
-      background: var(--surface);
+      color: var(--control-text);
+      background: var(--control-bg);
 
       &:hover {
+        color: var(--control-hover-text);
+        background: var(--control-hover-bg);
+      }
+
+      &:active {
         color: var(--accent-text);
-        background: var(--accent-soft);
+        background: var(--control-active-bg);
       }
 
       &:first-child {
@@ -211,14 +216,18 @@ html:has(.location-dialog[open]) {
     margin-top: 20px;
     border: 1px solid var(--accent);
     border-radius: 3px;
-    color: var(--page);
-    background: var(--accent);
+    color: var(--primary-text);
+    background: var(--primary-bg);
     font-size: 13px;
     font-weight: 600;
 
     &:hover {
-      color: var(--accent-text);
-      background: var(--accent-soft);
+      color: var(--primary-text);
+      background: var(--primary-hover-bg);
+    }
+
+    &:active:not(:disabled) {
+      background: var(--primary-active-bg);
     }
   }
 }
@@ -266,16 +275,22 @@ html:has(.location-dialog[open]) {
     min-height: 44px;
     margin-bottom: 16px;
     padding: 10px 14px;
-    border: 1px solid var(--border);
+    border: 1px solid var(--control-border);
     border-radius: 3px;
-    color: var(--accent-text);
-    background: var(--surface-subtle);
+    color: var(--control-text);
+    background: var(--control-bg);
     font-size: 13px;
     font-weight: 600;
 
     &:hover:not(:disabled) {
-      border-color: var(--accent);
-      background: var(--accent-soft);
+      border-color: var(--control-hover-border);
+      color: var(--control-hover-text);
+      background: var(--control-hover-bg);
+    }
+
+    &:active:not(:disabled) {
+      border-color: var(--control-active-border);
+      background: var(--control-active-bg);
     }
 
     +.location-picker__error {
@@ -325,10 +340,18 @@ html:has(.location-dialog[open]) {
       padding: 8px 12px;
       border: 0;
       border-radius: 3px;
-      color: var(--page);
-      background: var(--accent);
+      color: var(--primary-text);
+      background: var(--primary-bg);
       font-size: 12px;
       font-weight: 600;
+
+      &:hover:not(:disabled) {
+        background: var(--primary-hover-bg);
+      }
+
+      &:active:not(:disabled) {
+        background: var(--primary-active-bg);
+      }
     }
   }
 
@@ -373,7 +396,11 @@ html:has(.location-dialog[open]) {
 
       &:hover,
       &:focus-visible {
-        background: var(--accent-soft);
+        background: var(--control-hover-bg);
+      }
+
+      &:active:not(:disabled) {
+        background: var(--control-active-bg);
       }
     }
 
@@ -436,5 +463,22 @@ html:has(.location-dialog[open]) {
   .location-dialog[open],
   .settings-dialog[open] {
     animation: none;
+  }
+}
+
+@media (hover: none) {
+
+  .location-picker__device:hover:not(:active),
+  .location-picker__zoom button:hover:not(:active),
+  .location-picker__results button:hover:not(:active) {
+    border-color: var(--control-border);
+    color: var(--control-text);
+    background: var(--control-bg);
+  }
+
+  .location-picker__apply:hover:not(:active),
+  .location-picker__search-field>button:hover:not(:active) {
+    color: var(--primary-text);
+    background: var(--primary-bg);
   }
 }

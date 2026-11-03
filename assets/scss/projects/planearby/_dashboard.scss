@@ -59,10 +59,10 @@
   gap: 7px;
   min-height: 44px;
   padding: 8px 12px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--control-border);
   border-radius: 4px;
-  color: var(--text-secondary);
-  background: var(--surface);
+  color: var(--control-text);
+  background: var(--control-bg);
   font-size: 11px;
   font-weight: 600;
 
@@ -73,8 +73,14 @@
   }
 
   &:hover {
-    border-color: var(--text-muted);
-    color: var(--text);
+    border-color: var(--control-hover-border);
+    color: var(--control-hover-text);
+    background: var(--control-hover-bg);
+  }
+
+  &:active:not(:disabled) {
+    border-color: var(--control-active-border);
+    background: var(--control-active-bg);
   }
 }
 
@@ -286,7 +292,7 @@
     border: 1px solid var(--board-heading);
     border-radius: 6px;
     color: var(--board-heading);
-    background: var(--flap-bg);
+    background: var(--control-bg);
     text-align: left;
     transition:
       border-color 150ms,
@@ -297,7 +303,13 @@
     }
 
     &:hover {
-      background: var(--board-rule);
+      border-color: var(--control-hover-border);
+      background: var(--control-hover-bg);
+    }
+
+    &:active:not(:disabled) {
+      border-color: var(--control-active-border);
+      background: var(--control-active-bg);
     }
 
     &--paused {
@@ -438,19 +450,6 @@
     text-underline-offset: 4px;
   }
 
-  &__location {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    min-height: 44px;
-    margin-top: 20px;
-    padding: 10px 14px;
-    border: 1px solid var(--accent);
-    border-radius: 3px;
-    color: var(--accent-text);
-    background: var(--accent-soft);
-    font-size: 13px;
-  }
 }
 
 .radar-panel {
@@ -481,14 +480,21 @@
     @include flex-center;
     gap: 6px;
     padding: 8px 12px;
-    border: 1px solid var(--border);
+    border: 1px solid var(--control-border);
     border-radius: 3px;
-    background: var(--surface);
+    color: var(--control-text);
+    background: var(--control-bg);
     text-decoration: none;
 
     &:hover:not(:disabled) {
-      border-color: var(--accent);
-      background: var(--accent-soft);
+      border-color: var(--control-hover-border);
+      color: var(--control-hover-text);
+      background: var(--control-hover-bg);
+    }
+
+    &:active:not(:disabled) {
+      border-color: var(--control-active-border);
+      background: var(--control-active-bg);
     }
   }
 
@@ -725,14 +731,20 @@
   width: 44px;
   height: 44px;
   padding: 0;
-  color: var(--text-secondary);
-  background: var(--surface);
-  border: 1px solid var(--border);
+  color: var(--control-text);
+  background: var(--control-bg);
+  border: 1px solid var(--control-border);
   border-radius: 50%;
 
   &:hover {
     color: var(--accent);
-    border-color: var(--accent);
+    border-color: var(--control-hover-border);
+    background: var(--control-hover-bg);
+  }
+
+  &:active:not(:disabled) {
+    border-color: var(--control-active-border);
+    background: var(--control-active-bg);
   }
 }
 
@@ -975,6 +987,26 @@
   }
 }
 
+@media (hover: none) {
+
+  .scan-button:hover:not(:active),
+  .radar-panel__device-location:hover:not(:active),
+  .settings-fab:hover:not(:active) {
+    border-color: var(--control-border);
+    color: var(--control-text);
+    background: var(--control-bg);
+  }
+
+  .flight-board__rotation:hover:not(:active) {
+    border-color: var(--board-heading);
+    background: var(--control-bg);
+  }
+
+  .flight-board__rotation--paused:hover:not(:active) {
+    border-color: var(--board-border);
+  }
+}
+
 @media (forced-colors: active) {
 
   .theme-options__option--selected,
@@ -1093,10 +1125,10 @@
 
     >button {
       padding: 8px 4px;
-      border: 1px solid var(--border);
+      border: 1px solid var(--control-border);
       border-radius: 5px;
-      color: var(--text-secondary);
-      background: transparent;
+      color: var(--control-text);
+      background: var(--control-bg);
       font-size: 11px;
 
       >small {
@@ -1110,6 +1142,17 @@
         border-color: var(--accent);
         color: var(--accent-text);
         background: var(--accent-soft);
+      }
+
+      &:hover:not([aria-pressed='true']) {
+        border-color: var(--control-hover-border);
+        color: var(--control-hover-text);
+        background: var(--control-hover-bg);
+      }
+
+      &:active:not([aria-pressed='true']) {
+        border-color: var(--control-active-border);
+        background: var(--control-active-bg);
       }
     }
   }

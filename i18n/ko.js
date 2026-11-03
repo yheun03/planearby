@@ -42,6 +42,7 @@ export default {
   addressApproximate:
     '정확한 건물 대신 도로 위치를 찾았어요. 지도에서 위치를 맞춘 뒤 조회해 주세요.',
   useCurrentLocation: '현재 위치로 조회',
+  resetCurrentLocation: '현재 위치 재설정',
   offerManualLocation: '현재 위치를 확인하지 못했어요. 조회 위치를 직접 선택할까요?',
   locationChoiceHint: '현재 위치를 사용하거나 지도에서 조회할 위치를 직접 선택할 수 있어요.',
   locationPickerTitle: '조회 위치 선택',

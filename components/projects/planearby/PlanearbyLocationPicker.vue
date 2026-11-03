@@ -186,9 +186,9 @@ async function searchAddress() {
     const requestedRoad = query.match(/(?:^|\s)([가-힣0-9·]+(?:대로|로|길))(?=\s|$)/)?.[1]
     const requestedNumber = requestedRoad
       ? query
-          .slice(query.indexOf(requestedRoad) + requestedRoad.length)
-          .trim()
-          .match(/^\d+(?:-\d+)?(?=\s|$)/)?.[0]
+        .slice(query.indexOf(requestedRoad) + requestedRoad.length)
+        .trim()
+        .match(/^\d+(?:-\d+)?(?=\s|$)/)?.[0]
       : null
     const results = body.features
       .filter((item) => {
@@ -279,103 +279,59 @@ onUnmounted(destroyMap)
 </script>
 
 <template>
-  <dialog
-    ref="dialog"
-    class="location-dialog"
-    aria-labelledby="location-picker-title"
-    aria-describedby="location-picker-hint"
-    @close="handleClose"
-    @click="
+  <dialog ref="dialog" class="location-dialog" aria-labelledby="location-picker-title"
+    aria-describedby="location-picker-hint" @close="handleClose" @click="
       (event) => {
         if (event.target === dialog) close()
       }
-    "
-  >
+    ">
     <div class="location-dialog__content">
       <div class="location-dialog__heading">
         <span class="location-dialog__icon">
-          <MapPin
-            aria-hidden="true"
-            :size="22"
-          />
+          <MapPin aria-hidden="true" :size="22" />
         </span>
         <h2 id="location-picker-title">{{ t('locationPickerTitle') }}</h2>
-        <button
-          class="icon-button"
-          :aria-label="t('closeLocationPicker')"
-          @click="close"
-        >
-          <X
-            aria-hidden="true"
-            :size="21"
-          />
+        <button class="icon-button" :aria-label="t('closeLocationPicker')" @click="close">
+          <X aria-hidden="true" :size="21" />
         </button>
       </div>
       <p id="location-picker-hint">{{ t('locationPickerHint') }}</p>
 
       <div class="location-picker">
-        <button
-          class="location-picker__device"
-          type="button"
-          :disabled="deviceLocationPending"
-          @click="emit('device-location')"
-        >
-          <LocateFixed
-            :size="18"
-            aria-hidden="true"
-          />
-          {{ t(deviceLocationPending ? 'locating' : 'useCurrentLocation') }}
+        <button class="location-picker__device" type="button" :disabled="deviceLocationPending"
+          @click="emit('device-location')">
+          <LocateFixed :size="18" aria-hidden="true" />
+          {{
+            t(
+              deviceLocationPending
+                ? 'locating'
+                : deviceLocationError
+                  ? 'resetCurrentLocation'
+                  : 'useCurrentLocation',
+            )
+          }}
         </button>
-        <p
-          v-if="deviceLocationError"
-          class="location-picker__error"
-          role="status"
-        >
+        <p v-if="deviceLocationError" class="location-picker__error" role="status">
           {{ t(deviceLocationError) }} {{ t('locationKept') }}
         </p>
-        <form
-          class="location-picker__search"
-          role="search"
-          :aria-busy="searching"
-          @submit.prevent="searchAddress"
-        >
+        <form class="location-picker__search" role="search" :aria-busy="searching" @submit.prevent="searchAddress">
           <label for="location-address">{{ t('addressSearch') }}</label>
           <div class="location-picker__search-field">
-            <Search
-              :size="18"
-              aria-hidden="true"
-            />
-            <input
-              id="location-address"
-              ref="searchInput"
-              aria-describedby="address-search-hint"
-              :aria-controls="searchResults.length ? 'address-search-results' : undefined"
-              v-model="searchQuery"
-              type="search"
-              :placeholder="t('addressPlaceholder')"
-              autocomplete="off"
-              maxlength="200"
-              @input="editSearch"
-            />
-            <button
-              type="submit"
-              :disabled="searching || !searchQuery.trim()"
-            >
+            <Search :size="18" aria-hidden="true" />
+            <input id="location-address" ref="searchInput" aria-describedby="address-search-hint"
+              :aria-controls="searchResults.length ? 'address-search-results' : undefined" v-model="searchQuery"
+              type="search" :placeholder="t('addressPlaceholder')" autocomplete="off" maxlength="200"
+              @input="editSearch" />
+            <button type="submit" :disabled="searching || !searchQuery.trim()">
               {{ t(searching ? 'addressSearching' : 'addressSearchButton') }}
             </button>
           </div>
-          <p
-            id="address-search-hint"
-            class="location-picker__search-hint"
-          >
+          <p id="address-search-hint" class="location-picker__search-hint">
             {{ t('addressSearchHint') }}
           </p>
         </form>
-        <p
-          v-if="searching || searchMessage || searchResults.length"
-          class="location-picker__search-message"
-          role="status"
-        >
+        <p v-if="searching || searchMessage || searchResults.length" class="location-picker__search-message"
+          role="status">
           {{
             searching
               ? t('addressSearching')
@@ -384,24 +340,11 @@ onUnmounted(destroyMap)
                 : `${t('addressResults')}: ${searchResults.length}`
           }}
         </p>
-        <ul
-          v-if="searchResults.length"
-          id="address-search-results"
-          class="location-picker__results"
-          :aria-label="t('addressResults')"
-        >
-          <li
-            v-for="result in searchResults"
-            :key="result.id"
-          >
-            <button
-              type="button"
-              @click="selectAddress(result)"
-            >
-              <MapPin
-                :size="17"
-                aria-hidden="true"
-              />
+        <ul v-if="searchResults.length" id="address-search-results" class="location-picker__results"
+          :aria-label="t('addressResults')">
+          <li v-for="result in searchResults" :key="result.id">
+            <button type="button" @click="selectAddress(result)">
+              <MapPin :size="17" aria-hidden="true" />
               <span>
                 <strong>{{ result.name }}</strong>
                 <small v-if="result.approximate">{{ t('addressRoadResult') }}</small>
@@ -411,120 +354,57 @@ onUnmounted(destroyMap)
           </li>
         </ul>
         <div class="location-picker__map-area">
-          <div
-            ref="mapElement"
-            class="location-picker__map"
-            role="region"
-            :aria-label="t('locationMapLabel')"
-          />
-          <span
-            class="location-picker__pin"
-            aria-hidden="true"
-          >
+          <div ref="mapElement" class="location-picker__map" role="region" :aria-label="t('locationMapLabel')" />
+          <span class="location-picker__pin" aria-hidden="true">
             <MapPin :size="36" />
           </span>
           <div class="location-picker__zoom">
-            <button
-              :aria-label="t('zoomIn')"
-              :disabled="!mapReady"
-              @click="map?.zoomIn()"
-            >
-              <Plus
-                aria-hidden="true"
-                :size="18"
-              />
+            <button :aria-label="t('zoomIn')" :disabled="!mapReady" @click="map?.zoomIn()">
+              <Plus aria-hidden="true" :size="18" />
             </button>
-            <button
-              :aria-label="t('zoomOut')"
-              :disabled="!mapReady"
-              @click="map?.zoomOut()"
-            >
-              <Minus
-                aria-hidden="true"
-                :size="18"
-              />
+            <button :aria-label="t('zoomOut')" :disabled="!mapReady" @click="map?.zoomOut()">
+              <Minus aria-hidden="true" :size="18" />
             </button>
           </div>
-          <p
-            v-if="mapLoading || mapUnavailable"
-            class="location-picker__map-message"
-            role="status"
-          >
+          <p v-if="mapLoading || mapUnavailable" class="location-picker__map-message" role="status">
             {{ t(mapUnavailable ? 'locationMapUnavailable' : 'mapLoading') }}
           </p>
         </div>
         <p class="location-picker__attribution">
-          <a
-            href="https://www.openstreetmap.org/copyright"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
+          <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">
             © OpenStreetMap contributors
           </a>
           <span>·</span>
-          <a
-            href="https://photon.komoot.io/"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
+          <a href="https://photon.komoot.io/" target="_blank" rel="noopener noreferrer">
             Photon
           </a>
         </p>
 
-        <form
-          novalidate
-          @submit.prevent="applyLocation"
-        >
+        <form novalidate @submit.prevent="applyLocation">
           <fieldset class="location-picker__coordinates">
             <legend>{{ t('coordinateInput') }}</legend>
             <div class="location-picker__fields">
               <label>
                 <span>{{ t('latitude') }}</span>
-                <input
-                  v-model="latitude"
-                  type="number"
-                  inputmode="decimal"
-                  min="-90"
-                  max="90"
-                  step="any"
+                <input v-model="latitude" type="number" inputmode="decimal" min="-90" max="90" step="any"
                   :aria-invalid="Boolean(validationMessage)"
                   :aria-describedby="validationMessage ? 'location-picker-error' : undefined"
-                  @change="updateMapCenter"
-                />
+                  @change="updateMapCenter" />
               </label>
               <label>
                 <span>{{ t('longitude') }}</span>
-                <input
-                  v-model="longitude"
-                  type="number"
-                  inputmode="decimal"
-                  min="-180"
-                  max="180"
-                  step="any"
+                <input v-model="longitude" type="number" inputmode="decimal" min="-180" max="180" step="any"
                   :aria-invalid="Boolean(validationMessage)"
                   :aria-describedby="validationMessage ? 'location-picker-error' : undefined"
-                  @change="updateMapCenter"
-                />
+                  @change="updateMapCenter" />
               </label>
             </div>
           </fieldset>
-          <p
-            v-if="validationMessage"
-            id="location-picker-error"
-            class="location-picker__error"
-            role="alert"
-          >
+          <p v-if="validationMessage" id="location-picker-error" class="location-picker__error" role="alert">
             {{ t(validationMessage) }}
           </p>
-          <button
-            ref="applyButton"
-            class="location-picker__apply"
-            type="submit"
-          >
-            <MapPin
-              aria-hidden="true"
-              :size="16"
-            />
+          <button ref="applyButton" class="location-picker__apply" type="submit">
+            <MapPin aria-hidden="true" :size="16" />
             {{ t('applyLocation') }}
           </button>
         </form>
