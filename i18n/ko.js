@@ -16,9 +16,9 @@ export default {
   guideQuestion4: '내 위치가 저장되나요?',
   guideAnswer4:
     '위치 좌표는 브라우저 메모리에서만 사용합니다. 조회 시 근사 좌표는 중계 서비스와 adsb.lol에 전달되며, 주소 검색어는 Photon에 전달됩니다. 앱은 위치를 별도로 저장하지 않습니다.',
-  guideQuestion5: '현재 위치와 휴대폰 나침반을 함께 사용할 수 있나요?',
+  guideQuestion5: '현재 위치를 확인하지 못하면 어떻게 하나요?',
   guideAnswer5:
-    '모바일 레이더의 현재 위치·나침반 조회 버튼으로 두 기능을 함께 요청할 수 있습니다. 설정에서는 현재 위치와 나침반을 각각 사용할 수 있으며, 허용하지 않은 기능은 수동 위치나 수동 방향으로 대체할 수 있습니다.',
+    '현재 위치 조회가 실패하면 위치를 직접 선택할지 묻습니다. 확인을 누른 뒤 주소 검색, 지도 또는 좌표 입력으로 조회 위치를 지정할 수 있습니다.',
 
   addressSearch: '주소 검색',
   addressPlaceholder: '주소 또는 장소를 입력하세요',
@@ -42,7 +42,7 @@ export default {
   addressApproximate:
     '정확한 건물 대신 도로 위치를 찾았어요. 지도에서 위치를 맞춘 뒤 조회해 주세요.',
   useCurrentLocation: '현재 위치로 조회',
-  useLocationAndCompass: '현재 위치·나침반으로 조회',
+  offerManualLocation: '현재 위치를 확인하지 못했어요. 조회 위치를 직접 선택할까요?',
   locationChoiceHint: '현재 위치를 사용하거나 지도에서 조회할 위치를 직접 선택할 수 있어요.',
   locationPickerTitle: '조회 위치 선택',
   locationPickerHint:

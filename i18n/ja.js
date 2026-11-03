@@ -14,9 +14,9 @@ export default {
   guideQuestion4: '位置情報は保存されますか？',
   guideAnswer4:
     '座標はブラウザのメモリでのみ使用します。検索時に概算座標を中継サービスとadsb.lolへ、住所検索語をPhotonへ送信します。アプリは位置を保存しません。',
-  guideQuestion5: '現在地と携帯のコンパスを同時に使えますか？',
+  guideQuestion5: '現在地を確認できない場合はどうすればよいですか？',
   guideAnswer5:
-    'モバイルでは現在地・コンパス検索ボタンで両方をまとめて要求できます。設定では現在地とコンパスを個別に使用でき、許可しない機能は手動の位置や方向で代替できます。',
+    '現在地の確認に失敗すると、位置を直接選択するか確認します。確認後、住所検索・地図・座標入力で検索位置を指定できます。',
 
   addressSearch: '住所を検索',
   addressPlaceholder: '住所や場所を入力',
@@ -39,7 +39,7 @@ export default {
   addressRoadResult: '道路の位置 · 建物番号を確認してください',
   addressApproximate: '建物ではなく道路の位置です。地図でピンを合わせてから検索してください。',
   useCurrentLocation: '現在地で検索',
-  useLocationAndCompass: '現在地・コンパスで検索',
+  offerManualLocation: '現在地を確認できませんでした。検索位置を直接選択しますか？',
   locationChoiceHint: '現在地を使用するか、地図で検索する位置を直接選択できます。',
   locationPickerTitle: '検索する位置を選択',
   locationPickerHint:

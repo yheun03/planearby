@@ -548,6 +548,8 @@ async function startScan(positionOverride) {
     if (error.uiKey === 'denied') permission.value = 'denied'
     errorKey.value = error.uiKey || 'apiError'
     finishSession('error')
+    if (['denied', 'unavailable', 'timeout', 'insecure', 'unsupported'].includes(error.uiKey))
+      offerManualLocation()
   }
 }
 
@@ -573,6 +575,11 @@ function openLocationPicker() {
   settingsDialog.value?.close()
   choosingLocation.value = true
   locationPicker.value?.open()
+}
+
+function offerManualLocation() {
+  if (choosingLocation.value) return
+  if (window.confirm(t('offerManualLocation'))) openLocationPicker()
 }
 
 function applyManualLocation(point) {
@@ -620,19 +627,10 @@ async function useDeviceLocation() {
     if (request.signal.aborted) return
     if (error.uiKey === 'denied') permission.value = 'denied'
     deviceLocationError.value = error.uiKey || 'unavailable'
+    offerManualLocation()
   } finally {
     if (deviceLocationController === request) deviceLocationPending.value = false
   }
-}
-
-function useDeviceLocationAndCompass() {
-  if (deviceLocationPending.value || state.value === 'locating' || compassWaiting.value) return
-  if (Date.now() < quotaRetryAt) {
-    showQuotaNotice()
-    return
-  }
-  if (isTouchDevice.value) void enableCompass()
-  void useDeviceLocation()
 }
 
 function applyPreferences() {
@@ -696,6 +694,7 @@ function syncLocationPermission() {
     automaticScanPending = false
     errorKey.value = 'denied'
     finishSession('error')
+    offerManualLocation()
   }
 }
 function handleVisibility() {
@@ -1184,32 +1183,18 @@ onUnmounted(() => {
             :size="14"
           />
           <span>{{ locationText }}</span>
-          <button @click="openLocationPicker">{{ t('chooseLocation') }}</button>
           <button
             class="radar-panel__device-location"
-            :disabled="deviceLocationPending || state === 'locating' || compassWaiting"
-            :aria-busy="deviceLocationPending || state === 'locating' || compassWaiting"
-            @click="useDeviceLocationAndCompass"
+            :disabled="deviceLocationPending || state === 'locating'"
+            :aria-busy="deviceLocationPending || state === 'locating'"
+            @click="useDeviceLocation"
           >
             <LocateFixed
               aria-hidden="true"
               :size="14"
             />
-            <Compass
-              v-if="isTouchDevice"
-              aria-hidden="true"
-              :size="14"
-            />
             {{
-              t(
-                deviceLocationPending || state === 'locating'
-                  ? 'locating'
-                  : compassWaiting
-                    ? 'compassWaiting'
-                    : isTouchDevice
-                      ? 'useLocationAndCompass'
-                      : 'useCurrentLocation',
-              )
+              t(deviceLocationPending || state === 'locating' ? 'locating' : 'useCurrentLocation')
             }}
           </button>
           <p

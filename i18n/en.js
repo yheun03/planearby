@@ -14,9 +14,9 @@ export default {
   guideQuestion4: 'Is my location stored?',
   guideAnswer4:
     'Coordinates are used in browser memory only. Approximate coordinates go to the relay and adsb.lol when scanning, and address queries go to Photon. The app does not save your location.',
-  guideQuestion5: 'Can I use my current location and phone compass together?',
+  guideQuestion5: 'What if my current location cannot be found?',
   guideAnswer5:
-    'On mobile, the location and compass scan button requests both features together. In Settings, location and compass remain separate, and manual location or direction can replace either permission.',
+    'If current-location lookup fails, the app asks whether to choose a location manually. Confirm to use address search, the map or coordinate input.',
 
   addressSearch: 'Search address',
   addressPlaceholder: 'Enter an address or place',
@@ -39,7 +39,7 @@ export default {
   addressRoadResult: 'Street location · check the building number',
   addressApproximate: 'Only the street was found. Adjust the pin to the building before scanning.',
   useCurrentLocation: 'Scan at my current location',
-  useLocationAndCompass: 'Scan with location and compass',
+  offerManualLocation: 'We could not find your current location. Choose a search location manually?',
   locationChoiceHint: 'Use your current location or choose a search location on the map.',
   locationPickerTitle: 'Choose a search location',
   locationPickerHint:

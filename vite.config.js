@@ -83,7 +83,6 @@ export default defineConfig(({ mode }) => {
                 'Nearby aircraft radar',
                 'Address and map location selection',
                 'Reference flight routes',
-                'Combined mobile location and compass scan',
                 'Manual and device compass heading',
               ],
               subjectOf: {
