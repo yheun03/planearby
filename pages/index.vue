@@ -1067,10 +1067,10 @@ onUnmounted(() => {
           </div>
           <span class="radar__scale radar__scale--outer">{{ SEARCH_RADIUS_KM }} km</span>
           <span class="radar__scale radar__scale--middle">
-            {{ ((SEARCH_RADIUS_KM * 2) / 3).toFixed(1) }} km
+            {{ (SEARCH_RADIUS_KM * 2) / 3 }} km
           </span>
           <span class="radar__scale radar__scale--inner">
-            {{ (SEARCH_RADIUS_KM / 3).toFixed(1) }} km
+            {{ SEARCH_RADIUS_KM / 3 }} km
           </span>
           <span v-for="(cardinal, index) in ['N', 'E', 'S', 'W']" :key="cardinal" class="radar__cardinal"
             :style="cardinalPosition(index * 90)" aria-hidden="true">
@@ -1293,25 +1293,27 @@ onUnmounted(() => {
           {{ t(deviceLocationError) }} {{ t('locationKept') }}
         </p>
         <p v-if="locationMode === 'manual'">{{ t('manualLocation') }} · {{ coordinateText }}</p>
-        <button class="permission-button" :disabled="deviceLocationPending || state === 'locating'"
-          @click="useDeviceLocation">
-          <LocateFixed aria-hidden="true" :size="16" />
-          {{
-            deviceLocationPending || state === 'locating'
-              ? t('locating')
-              : t(
-                permission === 'denied' || deviceLocationError
-                  ? 'resetCurrentLocation'
-                  : 'useCurrentLocation',
-              )
-          }}
-          <ArrowUpRight aria-hidden="true" :size="15" />
-        </button>
-        <button class="permission-button" @click="openLocationPicker">
-          <MapPin aria-hidden="true" :size="16" />
-          {{ t('chooseLocation') }}
-          <ArrowUpRight aria-hidden="true" :size="15" />
-        </button>
+        <div class="setting-group__actions">
+          <button class="permission-button" :disabled="deviceLocationPending || state === 'locating'"
+            @click="useDeviceLocation">
+            <LocateFixed aria-hidden="true" :size="16" />
+            {{
+              deviceLocationPending || state === 'locating'
+                ? t('locating')
+                : t(
+                  permission === 'denied' || deviceLocationError
+                    ? 'resetCurrentLocation'
+                    : 'useCurrentLocation',
+                )
+            }}
+            <ArrowUpRight aria-hidden="true" :size="15" />
+          </button>
+          <button class="permission-button" @click="openLocationPicker">
+            <MapPin aria-hidden="true" :size="16" />
+            {{ t('chooseLocation') }}
+            <ArrowUpRight aria-hidden="true" :size="15" />
+          </button>
+        </div>
         <p>{{ t('permissionHint') }}</p>
       </div>
       <div class="settings-dialog__saved">
