@@ -1052,6 +1052,18 @@
   }
 }
 
+@media (prefers-contrast: more) {
+  .radar__ring {
+    border-width: 2px;
+  }
+
+  .radar__scale,
+  .scan-button,
+  .radar-panel__device-location {
+    border-width: 2px;
+  }
+}
+
 .radar-panel__direction {
   display: flex;
   justify-content: center;

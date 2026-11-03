@@ -77,3 +77,7 @@
     display: none;
   }
 }
+
+:root[data-performance='low'] .split-flap__leaf {
+  display: none;
+}

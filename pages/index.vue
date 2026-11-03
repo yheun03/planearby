@@ -63,6 +63,7 @@ const isTouchDevice = ref(false)
 const clockText = ref('--:--')
 const liveDataStale = ref(false)
 const showRadarScale = ref(false)
+const refreshIntervalMs = ref(POSITION_REFRESH_MS)
 const flightClient = createFlightClient()
 const detailRequests = new Map()
 const seenFlightIds = new Set()
@@ -87,6 +88,8 @@ let refreshTimer
 let generation = 0
 let permissionStatus
 let colorScheme
+let networkConnection
+let sensorRenderInterval = 100
 let pendingRefreshGeneration = null
 let automaticScanPending = true
 let retryAt = 0
@@ -110,6 +113,16 @@ const RELATIVE_POSITIONS = [
   'frontLeft',
 ]
 const LOCATION_ERROR_KEYS = ['denied', 'unavailable', 'timeout', 'insecure', 'unsupported']
+const RADAR_SCALE_DISTANCES = [
+  SEARCH_RADIUS_KM,
+  (SEARCH_RADIUS_KM * 2) / 3,
+  SEARCH_RADIUS_KM / 3,
+]
+const NETWORK_REFRESH_INTERVALS = {
+  'slow-2g': 15000,
+  '2g': 15000,
+  '3g': 10000,
+}
 const clockFormatter = new Intl.DateTimeFormat('en-GB', {
   hour: '2-digit',
   minute: '2-digit',
@@ -131,7 +144,28 @@ const t = (key, values) => {
     })
   return text
 }
+const refreshSeconds = computed(() => refreshIntervalMs.value / 1000)
 const active = computed(() => state.value === 'locating' || state.value === 'tracking')
+const locationPending = computed(
+  () => deviceLocationPending.value || state.value === 'locating',
+)
+const currentLocationLabelKey = computed(() =>
+  locationPending.value
+    ? 'locating'
+    : permission.value === 'denied' || deviceLocationError.value
+      ? 'resetCurrentLocation'
+      : 'useCurrentLocation',
+)
+const radarLocationLabelKey = computed(() =>
+  compassWaiting.value ? 'compassWaiting' : currentLocationLabelKey.value,
+)
+const compassActionLabelKey = computed(() =>
+  compassWaiting.value
+    ? 'compassWaiting'
+    : compassFailureCount.value
+      ? 'resetCompass'
+      : 'enableCompass',
+)
 const isDark = computed(
   () => theme.value === 'dark' || (theme.value === 'system' && systemDark.value),
 )
@@ -291,6 +325,12 @@ function getLocation(signal) {
   })
 }
 
+function getLocationErrorKey(error, fallback = 'unavailable') {
+  const key = error?.uiKey || fallback
+  if (key === 'denied') permission.value = 'denied'
+  return key
+}
+
 function finishSession(nextState = 'ended') {
   generation += 1
   controller?.abort()
@@ -304,6 +344,15 @@ function finishSession(nextState = 'ended') {
         : flight,
     )
   }
+}
+
+function startRefreshTimer(currentGeneration = generation) {
+  clearInterval(refreshTimer)
+  if (state.value !== 'tracking' || document.hidden) return
+  refreshTimer = setInterval(
+    () => void refreshFlights(currentGeneration),
+    refreshIntervalMs.value,
+  )
 }
 
 async function refreshFlights(currentGeneration) {
@@ -412,7 +461,7 @@ function resetRotationTimer() {
     }
     if (next) selectFlight(next.id)
     else resetRotationTimer()
-  }, POSITION_REFRESH_MS)
+  }, refreshIntervalMs.value)
 }
 
 function selectFlight(id) {
@@ -484,7 +533,7 @@ function handleOrientation(event) {
   clearTimeout(compassTimer)
   compassTimer = setTimeout(compassUnavailable, 5000)
   const renderTime = performance.now()
-  if (renderTime - lastSensorRender < 100 && sensorHeading.value !== null) return
+  if (renderTime - lastSensorRender < sensorRenderInterval && sensorHeading.value !== null) return
   lastSensorRender = renderTime
   const previous = sensorHeading.value
   const delta = previous === null ? 0 : normalizeDegrees(heading - previous + 180) - 180
@@ -541,6 +590,13 @@ function listenForCompass() {
   compassTimer = setTimeout(compassUnavailable, 5000)
 }
 
+function pruneDetailCache() {
+  const now = Date.now()
+  detailCache.forEach((entry, callsign) => {
+    if (entry.expiresAt <= now) detailCache.delete(callsign)
+  })
+}
+
 async function startScan(positionOverride) {
   if (active.value) return
   manualLocationOfferShown = false
@@ -560,7 +616,7 @@ async function startScan(positionOverride) {
   detailRequests.clear()
   lastUpdated.value = null
   errorKey.value = ''
-  detailCache.clear()
+  pruneDetailCache()
   retryAt = 0
   failedPolls = 0
   lastPollAt = -Infinity
@@ -578,14 +634,14 @@ async function startScan(positionOverride) {
       permission.value = 'granted'
     }
     state.value = 'tracking'
-    refreshTimer = setInterval(() => void refreshFlights(currentGeneration), POSITION_REFRESH_MS)
+    startRefreshTimer(currentGeneration)
     await refreshFlights(currentGeneration)
   } catch (error) {
     if (generation !== currentGeneration || error.name === 'AbortError') return
-    if (error.uiKey === 'denied') permission.value = 'denied'
-    errorKey.value = error.uiKey || 'apiError'
+    const locationErrorKey = getLocationErrorKey(error, 'apiError')
+    errorKey.value = locationErrorKey
     finishSession('error')
-    if (LOCATION_ERROR_KEYS.includes(error.uiKey)) offerManualLocation()
+    if (LOCATION_ERROR_KEYS.includes(locationErrorKey)) offerManualLocation()
   }
 }
 
@@ -663,8 +719,7 @@ async function useDeviceLocation() {
     void startScan(position)
   } catch (error) {
     if (request.signal.aborted) return
-    if (error.uiKey === 'denied') permission.value = 'denied'
-    deviceLocationError.value = error.uiKey || 'unavailable'
+    deviceLocationError.value = getLocationErrorKey(error)
     offerManualLocation()
   } finally {
     if (deviceLocationController === request) deviceLocationPending.value = false
@@ -773,14 +828,33 @@ function handleVisibility() {
     resetRotationTimer()
     startAutomaticScan()
     if (state.value === 'tracking') {
-      clearInterval(refreshTimer)
-      refreshTimer = setInterval(() => void refreshFlights(generation), POSITION_REFRESH_MS)
+      startRefreshTimer()
       void refreshFlights(generation)
     }
   }
 }
 function handleColorScheme(event) {
   systemDark.value = event.matches
+}
+
+function getRefreshInterval() {
+  if (networkConnection?.saveData) return 15000
+  return NETWORK_REFRESH_INTERVALS[networkConnection?.effectiveType] || POSITION_REFRESH_MS
+}
+
+function isLowPerformanceDevice() {
+  const deviceMemory = Number(navigator.deviceMemory) || Infinity
+  const processorCount = Number(navigator.hardwareConcurrency) || Infinity
+  return networkConnection?.saveData || deviceMemory <= 2 || processorCount <= 2
+}
+
+function handleConnectionChange() {
+  refreshIntervalMs.value = getRefreshInterval()
+  sensorRenderInterval = isLowPerformanceDevice() ? 250 : 100
+  document.documentElement.dataset.performance =
+    sensorRenderInterval > 100 ? 'low' : 'standard'
+  resetRotationTimer()
+  startRefreshTimer()
 }
 
 function scheduleClock() {
@@ -803,6 +877,10 @@ onMounted(async () => {
   colorScheme = window.matchMedia('(prefers-color-scheme: dark)')
   systemDark.value = colorScheme.matches
   colorScheme.addEventListener('change', handleColorScheme)
+  networkConnection =
+    navigator.connection || navigator.mozConnection || navigator.webkitConnection
+  networkConnection?.addEventListener?.('change', handleConnectionChange)
+  handleConnectionChange()
   applyPreferences()
   isTouchDevice.value =
     window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0
@@ -849,6 +927,7 @@ onUnmounted(() => {
   window.removeEventListener('pagehide', stopWhenAway)
   window.removeEventListener('pageshow', handlePageShow)
   colorScheme?.removeEventListener('change', handleColorScheme)
+  networkConnection?.removeEventListener?.('change', handleConnectionChange)
   if (permissionStatus) permissionStatus.onchange = null
 })
 </script>
@@ -870,7 +949,7 @@ onUnmounted(() => {
       </span>
     </div>
     <div class="scan-controls">
-      <span>{{ t('simpleScanHint') }}</span>
+      <span>{{ t('simpleScanHint', { seconds: refreshSeconds }) }}</span>
       <button v-if="active" class="scan-button" @click="finishSession()">
         <Square aria-hidden="true" :size="13" />
         {{ t('stop') }}
@@ -1042,7 +1121,7 @@ onUnmounted(() => {
             <Play v-if="rotationPaused" aria-hidden="true" :size="16" />
             <Pause v-else aria-hidden="true" :size="16" />
             <span class="flight-board__rotation-label">
-              {{ t('autoRotate') }}
+              {{ t('autoRotate', { seconds: refreshSeconds }) }}
               <small>{{ t(rotationPaused ? 'rotationPaused' : 'rotationRunning') }}</small>
             </span>
           </button>
@@ -1054,8 +1133,8 @@ onUnmounted(() => {
           {{ t('radar') }}
         </h2>
         <div class="radar" :class="{ 'radar--scale-visible': showRadarScale }" role="group" tabindex="0"
-          :aria-label="`${t('radarLabel')} ${t('radarScaleHint')}`" @click="showRadarScale = !showRadarScale"
-          @keydown.enter.prevent="showRadarScale = !showRadarScale"
+          :aria-expanded="showRadarScale" :aria-label="`${t('radarLabel')} ${t('radarScaleHint')}`"
+          @click="showRadarScale = !showRadarScale" @keydown.enter.prevent="showRadarScale = !showRadarScale"
           @keydown.space.prevent="showRadarScale = !showRadarScale">
           <div class="radar__grid" aria-hidden="true">
             <span class="radar__forward" />
@@ -1065,12 +1144,12 @@ onUnmounted(() => {
             <span class="radar__axis radar__axis--vertical" />
             <span class="radar__axis radar__axis--horizontal" />
           </div>
-          <span class="radar__scale radar__scale--outer">{{ SEARCH_RADIUS_KM }} km</span>
-          <span class="radar__scale radar__scale--middle">
-            {{ (SEARCH_RADIUS_KM * 2) / 3 }} km
+          <span class="radar__scale radar__scale--outer" aria-hidden="true">{{ RADAR_SCALE_DISTANCES[0] }} km</span>
+          <span class="radar__scale radar__scale--middle" aria-hidden="true">
+            {{ RADAR_SCALE_DISTANCES[1] }} km
           </span>
-          <span class="radar__scale radar__scale--inner">
-            {{ SEARCH_RADIUS_KM / 3 }} km
+          <span class="radar__scale radar__scale--inner" aria-hidden="true">
+            {{ RADAR_SCALE_DISTANCES[2] }} km
           </span>
           <span v-for="(cardinal, index) in ['N', 'E', 'S', 'W']" :key="cardinal" class="radar__cardinal"
             :style="cardinalPosition(index * 90)" aria-hidden="true">
@@ -1101,25 +1180,16 @@ onUnmounted(() => {
             </span>
           </button>
         </div>
+        <p class="sr-only" role="status" aria-live="polite">
+          {{ showRadarScale ? t('radarScaleShown') : '' }}
+        </p>
         <div class="radar-panel__location">
           <MapPin aria-hidden="true" :size="14" />
           <span>{{ locationText }}</span>
-          <button class="radar-panel__device-location"
-            :disabled="deviceLocationPending || state === 'locating' || compassWaiting"
-            :aria-busy="deviceLocationPending || state === 'locating' || compassWaiting"
-            @click="useDeviceLocationAndCompass">
+          <button class="radar-panel__device-location" :disabled="locationPending || compassWaiting"
+            :aria-busy="locationPending || compassWaiting" @click="useDeviceLocationAndCompass">
             <LocateFixed aria-hidden="true" :size="14" />
-            {{
-              t(
-                deviceLocationPending || state === 'locating'
-                  ? 'locating'
-                  : compassWaiting
-                    ? 'compassWaiting'
-                    : permission === 'denied' || deviceLocationError
-                      ? 'resetCurrentLocation'
-                      : 'useCurrentLocation',
-              )
-            }}
+            {{ t(radarLocationLabelKey) }}
           </button>
           <p v-if="deviceLocationError" class="radar-panel__location-error" role="status">
             {{ t(deviceLocationError) }} {{ t('locationKept') }}
@@ -1144,7 +1214,7 @@ onUnmounted(() => {
       <div class="service-guide__content">
         <p>{{ t('guideIntro') }}</p>
         <dl>
-          <template v-for="number in 5" :key="number">
+          <template v-for="number in 6" :key="number">
             <dt>{{ t(`guideQuestion${number}`) }}</dt>
             <dd>{{ t(`guideAnswer${number}`) }}</dd>
           </template>
@@ -1266,11 +1336,7 @@ onUnmounted(() => {
           <p>{{ t('compassHint') }}</p>
           <button class="permission-button" :disabled="compassWaiting" @click="enableCompass">
             <Compass aria-hidden="true" :size="15" />
-            {{
-              compassWaiting
-                ? t('compassWaiting')
-                : t(compassFailureCount ? 'resetCompass' : 'enableCompass')
-            }}
+            {{ t(compassActionLabelKey) }}
             <ArrowUpRight aria-hidden="true" :size="15" />
           </button>
         </template>
@@ -1294,18 +1360,9 @@ onUnmounted(() => {
         </p>
         <p v-if="locationMode === 'manual'">{{ t('manualLocation') }} · {{ coordinateText }}</p>
         <div class="setting-group__actions">
-          <button class="permission-button" :disabled="deviceLocationPending || state === 'locating'"
-            @click="useDeviceLocation">
+          <button class="permission-button" :disabled="locationPending" @click="useDeviceLocation">
             <LocateFixed aria-hidden="true" :size="16" />
-            {{
-              deviceLocationPending || state === 'locating'
-                ? t('locating')
-                : t(
-                  permission === 'denied' || deviceLocationError
-                    ? 'resetCurrentLocation'
-                    : 'useCurrentLocation',
-                )
-            }}
+            {{ t(currentLocationLabelKey) }}
             <ArrowUpRight aria-hidden="true" :size="15" />
           </button>
           <button class="permission-button" @click="openLocationPicker">
@@ -1329,9 +1386,8 @@ onUnmounted(() => {
     {{ t(compassToast) }}
   </p>
   <PlanearbyLocationPicker ref="locationPicker" :initial-location="location || manualLocation || previewCenter"
-    :language="language" :device-location-pending="deviceLocationPending || state === 'locating'"
-    :device-location-error="deviceLocationError" @device-location="useDeviceLocation" @select="applyManualLocation"
-    @close="
+    :language="language" :device-location-pending="locationPending" :device-location-error="deviceLocationError"
+    @device-location="useDeviceLocation" @select="applyManualLocation" @close="
       () => {
         choosingLocation = false
         cancelDeviceLocation()

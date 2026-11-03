@@ -146,3 +146,20 @@ summary:focus-visible {
     transition: none;
   }
 }
+
+:root[data-performance='low'] button {
+  transition: none;
+}
+
+@media (prefers-contrast: more) {
+
+  button,
+  a,
+  input,
+  summary {
+    &:focus-visible {
+      outline-width: 3px;
+      outline-offset: 4px;
+    }
+  }
+}

@@ -17,6 +17,9 @@ export default {
   guideQuestion5: 'What if my current location cannot be found?',
   guideAnswer5:
     'If current-location lookup fails, the app asks whether to choose a location manually. Confirm to use address search, the map or coordinate input.',
+  guideQuestion6: 'Can I use it on a slow connection or low-powered phone?',
+  guideAnswer6:
+    'The normal refresh interval is five seconds. Data Saver and slow mobile networks use a ten- or fifteen-second scan and rotation interval, while low-powered devices reduce compass rendering.',
 
   addressSearch: 'Search address',
   addressPlaceholder: 'Enter an address or place',
@@ -69,7 +72,7 @@ export default {
   aircraft: 'Aircraft',
   flightNumber: 'Callsign',
   localTime: 'Local time',
-  autoRotate: 'FLIGHTS / AUTO 5 SEC',
+  autoRotate: 'FLIGHTS / AUTO {seconds} SEC',
   pauseRotation: 'Pause automatic flight rotation',
   resumeRotation: 'Resume automatic flight rotation',
   viewingDirection: 'Facing',
@@ -106,7 +109,8 @@ export default {
   directionW: 'W',
   directionNW: 'NW',
   radarScaleHint: 'Select the radar or an aircraft to show distance markers.',
-  simpleScanHint: '{radius} km radius · Positions update every 5 seconds',
+  radarScaleShown: 'Distance markers are 10, 20 and 30 kilometres from the centre.',
+  simpleScanHint: '{radius} km radius · Positions update every {seconds} seconds',
   simplePreview: 'Example data. Start a scan to discover aircraft near your actual location.',
   title: 'Planearby — Live nearby aircraft radar',
   description:

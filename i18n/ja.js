@@ -17,6 +17,9 @@ export default {
   guideQuestion5: '現在地を確認できない場合はどうすればよいですか？',
   guideAnswer5:
     '現在地の確認に失敗すると、位置を直接選択するか確認します。確認後、住所検索・地図・座標入力で検索位置を指定できます。',
+  guideQuestion6: '低速回線や低性能の携帯でも使えますか？',
+  guideAnswer6:
+    '通常は5秒ごとに更新します。データセーバーや低速モバイル回線では検索と自動切替を10秒または15秒間隔にし、低性能端末ではコンパスの画面更新を減らします。',
 
   addressSearch: '住所を検索',
   addressPlaceholder: '住所や場所を入力',
@@ -68,7 +71,7 @@ export default {
   aircraft: '機種',
   flightNumber: 'コールサイン',
   localTime: '現在時刻',
-  autoRotate: 'フライト · 5秒ごとに自動切替',
+  autoRotate: 'フライト · {seconds}秒ごとに自動切替',
   pauseRotation: 'フライトの自動切替を一時停止',
   resumeRotation: 'フライトの自動切替を再開',
   viewingDirection: '向いている方向',
@@ -104,7 +107,8 @@ export default {
   directionW: '西',
   directionNW: '北西',
   radarScaleHint: 'レーダーまたは飛行機を選ぶと距離の目盛りを表示します。',
-  simpleScanHint: '半径{radius}km · 位置は5秒ごとに更新',
+  radarScaleShown: '距離の目盛りは中心から10km、20km、30kmです。',
+  simpleScanHint: '半径{radius}km · 位置は{seconds}秒ごとに更新',
   simplePreview: 'サンプルデータです。観測を始めると実際の周辺の飛行機を探します。',
   title: 'Planearby — 周辺の飛行機をリアルタイム表示',
   description:

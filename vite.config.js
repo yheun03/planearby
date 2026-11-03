@@ -84,12 +84,21 @@ export default defineConfig(({ mode }) => {
                 'Address and map location selection',
                 'Reference flight routes',
                 'Manual and device compass heading',
+                'Adaptive refresh for slow networks and Data Saver',
+                'Keyboard-accessible radar distance markers',
               ],
+              accessibilityFeature: [
+                'alternativeText',
+                'highContrastDisplay',
+                'keyboardControl',
+                'structuralNavigation',
+              ],
+              accessibilityHazard: 'none',
               subjectOf: {
                 '@type': 'FAQPage',
                 ...(siteUrl ? { '@id': `${siteUrl}#guide` } : {}),
                 name: I18N_MESSAGES.ko.guideTitle,
-                mainEntity: [1, 2, 3, 4, 5].map((number) => ({
+                mainEntity: [1, 2, 3, 4, 5, 6].map((number) => ({
                   '@type': 'Question',
                   name: I18N_MESSAGES.ko[`guideQuestion${number}`],
                   acceptedAnswer: {

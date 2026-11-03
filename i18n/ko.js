@@ -19,6 +19,9 @@ export default {
   guideQuestion5: '현재 위치를 확인하지 못하면 어떻게 하나요?',
   guideAnswer5:
     '현재 위치 조회가 실패하면 위치를 직접 선택할지 묻습니다. 확인을 누른 뒤 주소 검색, 지도 또는 좌표 입력으로 조회 위치를 지정할 수 있습니다.',
+  guideQuestion6: '느린 인터넷이나 저사양 휴대폰에서도 사용할 수 있나요?',
+  guideAnswer6:
+    '기본 갱신 주기는 5초입니다. 데이터 절약 모드나 느린 모바일 네트워크에서는 조회와 자동 전환 주기를 10초 또는 15초로 낮추고, 저사양 기기에서는 나침반 화면 갱신을 줄입니다.',
 
   addressSearch: '주소 검색',
   addressPlaceholder: '주소 또는 장소를 입력하세요',
@@ -71,7 +74,7 @@ export default {
   aircraft: '기종',
   flightNumber: '호출부호',
   localTime: '현재 시각',
-  autoRotate: '항공편 · 5초 자동 전환',
+  autoRotate: '항공편 · {seconds}초 자동 전환',
   pauseRotation: '항공편 자동 전환 일시정지',
   resumeRotation: '항공편 자동 전환 재개',
   viewingDirection: '바라보는 방향',
@@ -108,7 +111,8 @@ export default {
   directionW: '서쪽',
   directionNW: '북서쪽',
   radarScaleHint: '레이더나 비행기를 누르면 거리 눈금이 보여요.',
-  simpleScanHint: '반경 {radius}km · 위치 5초 갱신',
+  radarScaleShown: '거리 눈금은 안쪽부터 10km, 20km, 30km입니다.',
+  simpleScanHint: '반경 {radius}km · 위치 {seconds}초 갱신',
   simplePreview: '예시 데이터입니다. 조회를 시작하면 실제 내 주변의 항공기를 찾아요.',
   title: projectConfig.seo.title,
   description: projectConfig.seo.description,

@@ -22,7 +22,7 @@ Leaflet: https://leafletjs.com/
 
 `GET https://api.adsb.lol/v2/point/{latitude}/{longitude}/{radius_nm}`
 
-사용 필드는 `hex`, `flight`, `lat`, `lon`, `track`, `t`, `r`, `seen_pos`, `alt_baro`, `category`입니다. 5초 간격으로 요청하며 중복 위치 요청은 만들지 않습니다. 현재 설정은 반경 30km이며 해리로 올림해 요청한 뒤 원래 사용자 좌표의 수평 거리로 다시 필터링합니다. 지상 항공기, 오래된 위치, 표시 대상이 아닌 기종과 헬기를 제외합니다.
+사용 필드는 `hex`, `flight`, `lat`, `lon`, `track`, `t`, `r`, `seen_pos`, `alt_baro`, `category`입니다. 기본 5초 간격으로 요청하며 데이터 절약 모드나 느린 모바일 네트워크에서는 10초 또는 15초로 조정합니다. 중복 위치 요청은 만들지 않습니다. 현재 설정은 반경 30km이며 해리로 올림해 요청한 뒤 원래 사용자 좌표의 수평 거리로 다시 필터링합니다.
 
 공개 데이터의 라이선스는 ODbL 1.0입니다. 위치 수신 범위와 지연에 따라 실제 항공기를 놓칠 수 있습니다.
 
